@@ -1,0 +1,14 @@
+newmtl defaultMat
+Ns 102
+d 1
+illum 2
+Kd 1 1 1
+Ks 1 1 1
+
+newmtl defaultMat
+Ns 115
+d 1
+illum 2
+Kd 1 1 1
+Ks 1 1 1
+
