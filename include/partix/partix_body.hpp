@@ -60,8 +60,8 @@ public:
 	virtual void teleport( const vector_type& v ) = 0;
 		
 	virtual void begin_frame() = 0;
-	virtual void update_velocity( real_type dt, real_type idt ) = 0;
-	virtual void apply_forces( real_type dt, real_type idt ) = 0;
+	virtual void compute_motion(
+		real_type pdt, real_type dt, real_type idt ) = 0;
 	virtual void match_shape() =0;
 	virtual void restore_shape( real_type dt, real_type idt, int kmax ) = 0;
 	virtual void update_display_matrix() = 0;

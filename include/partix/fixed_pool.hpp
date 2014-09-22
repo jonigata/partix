@@ -3,6 +3,7 @@
 
 #include <new>
 #include <cassert>
+#include "zw/dprintf.hpp"
 
 #pragma pack(push,1)
 
@@ -21,7 +22,8 @@ private:
 	}; 
 
 public:
-	fixed_pool( PageProvider& pp ) : page_provider_( pp )
+	fixed_pool( PageProvider& pp, const char* name  )
+		: page_provider_( pp )/* , name_( name ) */
 	{ 
 		pages_head_ = NULL;
 		unused_pages_ = NULL;
@@ -108,6 +110,10 @@ protected:
 			// 新たに割り当てる
 			new_page =
 				(page_header*)page_provider_.allocate( size );
+
+#if 0
+			dprintf_real( "new_page: %s\n", name_.c_str() );
+#endif
 		}
 				
 		// 先頭に前のページへのポインタを埋め込む
@@ -137,6 +143,9 @@ private:
 	char*			unformated_end_;
 	formated_tag*	formated_;
 
+#if 0
+	std::string		name_;
+#endif
 }; 
 
 // variable_pool
@@ -208,7 +217,7 @@ public:
 	}
 	~default_page_provider() {}
 
-	size_t page_size() { return 256; }
+	size_t page_size() { return 32768; }
 	void* allocate( size_t size )
 	{
 #if 0

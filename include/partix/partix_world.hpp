@@ -94,6 +94,7 @@ public:
     typedef Collidable< Traits >                    collidable_type;
     typedef Constraint< Traits >                    constraint_type;
     typedef Contact< Traits >                       contact_type;
+	typedef TetrahedralMesh< Traits >				tetra_type;
     typedef typename shell_type::clouds_type        clouds_type;
     typedef typename cloud_type::points_type        points_type;
     typedef typename points_type::iterator          points_iterator;
@@ -101,7 +102,7 @@ public:
     typedef std::vector< body_type* >               bodies_type;
     typedef std::vector< collidable_type* >         collidables_type;
     typedef std::vector< constraint_type >          constraints_type;
-    typedef std::vector< contact_type >             contacts_type;
+    typedef std::vector< contact_type* >            contacts_type;
     typedef aabb_tree< Traits, collidable_type* >   aabb_tree_type;
 
     typedef RayProcessor< Traits >                  ray_processor_type;
@@ -118,7 +119,8 @@ public:
 
 public:
     World()
-        : ray_processor_( 
+        : contact_pool_( page_provider_, "contact" ),
+		  ray_processor_( 
             SPATIAL_HASH_GRID_SIZE,
             SPATIAL_HASH_TABLE_SIZE ),
           cloth_point_tetrahedron_spatial_hash_(
@@ -215,6 +217,7 @@ private:
     {
         make_collision_resolver_table();
         time_ = 0;
+		previous_idt_ = real_type( 1 ) / Traits::tick();
     }
 
     void add_body_internal( body_type* p )
@@ -268,9 +271,9 @@ private:
 
     void update_internal( real_type elapsed )
     {
-        assert( math< Traits >::epsilon() <= elapsed );
+        assert( epsilon() <= elapsed );
         real_type dt = elapsed;
-        real_type idt = 1.0f / dt;
+        real_type idt = real_type(1) / dt;
 
         time_ += elapsed;
 
@@ -289,16 +292,11 @@ private:
         debug_check();
         pc.print( "update1" );
 
-        // 速度算出
-        update_velocity( dt, idt );
+        // 速度・力の計算
+		compute_motion( dt * previous_idt_, dt, idt );
         debug_check();
         pc.print( "update2" );
                 
-        // 外力の適用
-        apply_forces( dt, idt );
-        debug_check();
-        pc.print( "update3" );
-
         // 形状復元
         match_shape();
         debug_check();
@@ -326,7 +324,7 @@ private:
         debug_check();
         pc.print( "update9" );
 
-        apply_contacts();
+        apply_contacts( dt );
         debug_check();
         pc.print( "update10" );
 
@@ -342,6 +340,8 @@ private:
 
         end_frame();
         debug_check();
+
+		previous_idt_ = idt;
     }
 
     void set_global_force_internal( const vector_type& g )
@@ -406,31 +406,35 @@ private:
     {
         int n = BODY_ID_MAX;
         collision_resolver_table_.resize( n * n );
-        collision_resolver_table_[0*n+0] = &World< Traits >::collision_resolver_shell_shell;
-        collision_resolver_table_[0*n+1] = &World< Traits >::collision_resolver_shell_shell;
-        collision_resolver_table_[0*n+2] = &World< Traits >::collision_resolver_shell_volume;
-        collision_resolver_table_[0*n+3] = &World< Traits >::collision_resolver_shell_plane;
-        collision_resolver_table_[0*n+4] = &World< Traits >::collision_resolver_shell_cloth;
-        collision_resolver_table_[1*n+0] = &World< Traits >::collision_resolver_shell_shell;
-        collision_resolver_table_[1*n+1] = &World< Traits >::collision_resolver_shell_shell;
-        collision_resolver_table_[1*n+2] = &World< Traits >::collision_resolver_shell_volume;
-        collision_resolver_table_[1*n+3] = &World< Traits >::collision_resolver_shell_plane;
-        collision_resolver_table_[1*n+4] = &World< Traits >::collision_resolver_shell_cloth;
-        collision_resolver_table_[2*n+0] = &World< Traits >::collision_resolver_volume_shell;
-        collision_resolver_table_[2*n+1] = &World< Traits >::collision_resolver_volume_shell;
-        collision_resolver_table_[2*n+2] = &World< Traits >::collision_resolver_volume_volume;
-        collision_resolver_table_[2*n+3] = &World< Traits >::collision_resolver_volume_plane;
-        collision_resolver_table_[2*n+4] = &World< Traits >::collision_resolver_volume_cloth;
-        collision_resolver_table_[3*n+0] = &World< Traits >::collision_resolver_plane_shell;
-        collision_resolver_table_[3*n+1] = &World< Traits >::collision_resolver_plane_shell;
-        collision_resolver_table_[3*n+2] = &World< Traits >::collision_resolver_plane_volume;
-        collision_resolver_table_[3*n+3] = &World< Traits >::collision_resolver_plane_plane;
-        collision_resolver_table_[3*n+4] = &World< Traits >::collision_resolver_plane_cloth;
-        collision_resolver_table_[4*n+0] = &World< Traits >::collision_resolver_cloth_shell;
-        collision_resolver_table_[4*n+1] = &World< Traits >::collision_resolver_cloth_shell;
-        collision_resolver_table_[4*n+2] = &World< Traits >::collision_resolver_cloth_volume;
-        collision_resolver_table_[4*n+3] = &World< Traits >::collision_resolver_cloth_plane;
-        collision_resolver_table_[4*n+4] = &World< Traits >::collision_resolver_cloth_cloth;
+		
+		typedef World< Traits > w;
+		std::vector< collision_resolver_type >& t = collision_resolver_table_;
+
+        t[0*n+0] = &w::collision_resolver_shell_shell;
+        t[0*n+1] = &w::collision_resolver_shell_shell;
+        t[0*n+2] = &w::collision_resolver_shell_volume;
+        t[0*n+3] = &w::collision_resolver_shell_plane;
+        t[0*n+4] = &w::collision_resolver_shell_cloth;
+        t[1*n+0] = &w::collision_resolver_shell_shell;
+        t[1*n+1] = &w::collision_resolver_shell_shell;
+        t[1*n+2] = &w::collision_resolver_shell_volume;
+        t[1*n+3] = &w::collision_resolver_shell_plane;
+        t[1*n+4] = &w::collision_resolver_shell_cloth;
+        t[2*n+0] = &w::collision_resolver_volume_shell;
+        t[2*n+1] = &w::collision_resolver_volume_shell;
+        t[2*n+2] = &w::collision_resolver_volume_volume;
+        t[2*n+3] = &w::collision_resolver_volume_plane;
+        t[2*n+4] = &w::collision_resolver_volume_cloth;
+        t[3*n+0] = &w::collision_resolver_plane_shell;
+        t[3*n+1] = &w::collision_resolver_plane_shell;
+        t[3*n+2] = &w::collision_resolver_plane_volume;
+        t[3*n+3] = &w::collision_resolver_plane_plane;
+        t[3*n+4] = &w::collision_resolver_plane_cloth;
+        t[4*n+0] = &w::collision_resolver_cloth_shell;
+        t[4*n+1] = &w::collision_resolver_cloth_shell;
+        t[4*n+2] = &w::collision_resolver_cloth_volume;
+        t[4*n+3] = &w::collision_resolver_cloth_plane;
+        t[4*n+4] = &w::collision_resolver_cloth_cloth;
     }
 
     void begin_frame()
@@ -443,23 +447,13 @@ private:
         }
     }
                 
-    void update_velocity( real_type dt, real_type idt )
+    void compute_motion( real_type pdt, real_type dt, real_type idt )
     {
         for( typename bodies_type::const_iterator i = bodies_.begin() ;
              i != bodies_.end() ;
              ++i ) {
             body_type* p = (*i);
-            p->update_velocity( dt, idt );
-        }
-    }
-
-    void apply_forces( real_type dt, real_type idt )
-    {
-        for( typename bodies_type::const_iterator i = bodies_.begin() ;
-             i != bodies_.end() ;
-             ++i ) {
-            body_type* p = (*i);
-            p->apply_forces( dt, idt );
+            p->compute_motion( pdt, dt, idt );
         }
     }
 
@@ -497,6 +491,7 @@ private:
     {
         constraints_.clear();
         contacts_.clear();
+		contact_pool_.clear();
     }
 
     void collect_constraints()
@@ -903,7 +898,7 @@ private:
         // ..passiveの挿入
         n = volumes.size();
         for( size_t i = 0 ; i < n ; i++ ) {
-            TetrahedralMesh< Traits >* mesh = volumes[i]->get_mesh();
+            tetra_type* mesh = volumes[i]->get_mesh();
                         
             int m = int( mesh->get_faces().size() );
             for( int j = 0 ; j < m ; j++ ) {
@@ -925,7 +920,7 @@ private:
         // ..passiveの挿入
         n = volumes.size();
         for( size_t i = 0 ; i < n ; i++ ) {
-            TetrahedralMesh< Traits >* mesh = volumes[i]->get_mesh();
+            tetra_type* mesh = volumes[i]->get_mesh();
                         
             int m = int( mesh->get_faces().size() );
             for( int j = 0 ; j < m ; j++ ) {
@@ -998,10 +993,20 @@ private:
 
             points_type& fpoints = fp->get_points();
             face_type& f = fp->get_faces()[fi];
+#if 1
+			// smoothed collision normal
             e.collision_normal = math< PTraits >::normalize(
-                fpoints[f.i0].normal * e.u +
-                fpoints[f.i1].normal * e.v +
-                fpoints[f.i2].normal * e.w );
+                fpoints[f.i0].normal * e.w +
+                fpoints[f.i1].normal * e.u +
+                fpoints[f.i2].normal * e.v );
+#else
+			// raw collision normal
+			e.collision_normal = math< PTraits >::normalize(
+				math< PTraits >::cross(
+					fpoints[f.i1].new_position - fpoints[f.i0].new_position,
+					fpoints[f.i2].new_position - fpoints[f.i0].new_position )
+				);
+#endif
         }
 
     private:
@@ -1036,7 +1041,8 @@ private:
                 &fpoints[f.i2],
                 uvt.x,
                 uvt.y,
-                real_type( 1.0 ) - uvt.x - uvt.y );
+				real_type( 1.0 ) - uvt.x - uvt.y,
+				uvt.z );
         }
 
     private:
@@ -1168,23 +1174,21 @@ private:
         for( int i = 0 ; i < n ; i++ ) {
             softvolume_type* volume = D[i];
 
-            typename TetrahedralMesh< Traits >::points_type& points
+            typename tetra_type::points_type& points
                 = volume->get_mesh()->get_points();
 
             // penetration vectorの登録
             int m = int( points.size() );
             for( int j = 0 ; j < m ; j++ ) {
-                typename TetrahedralMesh< Traits >::point_type&
-                    v = points[j];
-                if( !v.collided ) { continue; }
-                if( v.penetration_denominator <
-                    math< Traits >::epsilon() ) {
-                    continue;
-                }
+                typename tetra_type::point_type& p = points[j];
+                if( !p.collided ) { continue; }
+                if( p.penetration_denominator < epsilon() ) { continue; }
 
                 penetration_face_spatial_hash_.add_penetration(
                     volume->get_mesh(), j );
             }
+
+			//dprintf_real("\n" );
         }
         pc.print( "narrow11" );
 
@@ -1222,6 +1226,48 @@ private:
     void apply_constraints()
     {
         const real_type c1 = real_type( 1.0 );
+        const vector_type& v0 = math< Traits >::vector_zero();
+
+		// 初期化
+        for( typename constraints_type::iterator i =
+                 constraints_.begin() ;
+             i != constraints_.end() ;
+             ++i ) {
+            constraint_type& c = *i;
+			c.point->tmp_velocity =
+				c.point->new_position -
+				c.point->old_position;
+			c.point->friction_vector = v0;
+		}
+
+		// 摩擦力の計算
+        for( typename constraints_type::iterator i =
+                 constraints_.begin() ;
+             i != constraints_.end() ;
+             ++i ) {
+            constraint_type& c = *i;
+
+			// 摩擦
+			const vector_type& n = c.plane_normal; // normalized
+            real_type npdotn = dot(
+				c.point->new_position - c.plane_position, n );
+            if( 0 <= npdotn ) { continue; }
+            vector_type u = -c.point->tmp_velocity;
+			real_type udotn = dot( u, n );
+			vector_type un = n * udotn;	// normal velocity
+			vector_type ut = u - un;	// tangencial velocity
+			real_type utlen = length( ut );
+			if( utlen < epsilon() ) { continue; }
+			real_type unlen = std::abs( udotn );
+
+			real_type mu = c.point->friction;
+			real_type friction = unlen * mu;
+			if( utlen < friction ) {
+				friction = utlen;
+			}
+
+			c.point->friction_vector += ut * ( friction / utlen );
+		}		
 
         // 制約
         for( typename constraints_type::iterator i =
@@ -1230,249 +1276,308 @@ private:
              ++i ) {
             constraint_type& c = *i;
 
-            vector_type& np = c.point->new_position;
+			c.point->new_position += c.point->friction_vector;
+
+			// ペネトレーション
+			const vector_type& n = c.plane_normal;
             real_type npdotn = dot(
-                np - c.plane_position, c.plane_normal );
+				c.point->new_position - c.plane_position, n );
             if( 0 <= npdotn ) { continue; }
 
-            vector_type op = c.point->old_position;
-            real_type opdotn = dot(
-                op - c.plane_position, c.plane_normal );
-            if( opdotn < 0 ) { op += c.plane_normal * -opdotn; }
+            real_type nlen = -npdotn;
+            vector_type penetration = n * nlen;
 
-            vector_type penetration = c.plane_normal * -npdotn;
-
-            real_type friction = math< Traits >::clip(
-                vector_traits::length( penetration ) *
-                c.point->friction *
-                c.point->mass );
-
-            // penetration depth
-            np += penetration;
-            c.point->pushout0 += penetration;
-                        
-            np = op +
-                ( np - op ) * ( real_type( 1.0 ) - friction );
+			c.point->new_position += penetration;
+			c.point->constraint_pushout += penetration;
 
             c.point->check();
         }
     }
 
-    void apply_contacts()
+	struct contact_remover {
+		bool operator()( contact_type* c ) const
+		{
+			// 最近だけ残す
+			return c->A_point->penetration_magnifier < c->t; 
+		}
+	};
+
+    void apply_contacts( real_type dt )
     {
         const real_type c1 = real_type( 1.0 );
-        const vector_type zero = math< Traits >::vector_zero();
+        const vector_type& zero = math< Traits >::vector_zero();
+
+		// A_pointを共有するcontactを削除する(一つにする)
+		contacts_.erase( 
+			std::remove_if(
+				contacts_.begin(),
+				contacts_.end(),
+				contact_remover() ),
+			contacts_.end() );
 
         // 接触
         // ..初期化
         for( typename contacts_type::iterator i = contacts_.begin() ;
              i != contacts_.end() ;
              ++i ) {
-            contact_type& c = *i;
+            contact_type& c = **i;
             c.check();
 
-            // active point のc定数、処理フラグ、ペナルティ誤差
+            // active point
             c.A_point->contact = c1;
             c.A_point->process_flag = false;
+			c.A_point->friction_vector = zero;
+			c.A_point->view_vector1 = c.A_point->new_position;
 
-            // passive points のc定数、処理フラグ、ペナルティ誤差
+            // passive points
             c.B_point0->contact = c1;
             c.B_point0->process_flag = false;
+			c.B_point0->friction_vector = zero;
 
             c.B_point1->contact = c1;
             c.B_point1->process_flag = false;
+			c.B_point1->friction_vector = zero;
 
             c.B_point2->contact = c1;
             c.B_point2->process_flag = false;
+			c.B_point2->friction_vector = zero;
+
+#if 0
+			c.A_point->tmp_velocity =
+				c.A_point->new_position -
+				c.A_point->old_position;
+			c.B_point0->tmp_velocity =
+				c.B_point0->new_position -
+				c.B_point0->old_position;
+			c.B_point1->tmp_velocity =
+				c.B_point1->new_position -
+				c.B_point1->old_position;
+			c.B_point2->tmp_velocity =
+				c.B_point2->new_position -
+				c.B_point2->old_position;
+#endif
         }
 
-        // ..c定数の収集
+        // ..c定数(の分母)の収集
         for( typename contacts_type::iterator i = contacts_.begin() ;
              i != contacts_.end() ;
              ++i ) {
-            contact_type& c = *i;
+            contact_type& c = **i;
 
-            c.B_point0->contact += c.u;
-            c.B_point1->contact += c.v;
-            c.B_point2->contact += c.w;
+            c.B_point0->contact += c.w;
+            c.B_point1->contact += c.u;
+            c.B_point2->contact += c.v;
         }
 
         // ..active apply
-        vector_type total_f = zero; // 誤差、Δt^-2は掛けていない
         for( typename contacts_type::iterator i = contacts_.begin() ;
              i != contacts_.end() ;
              ++i ) {
-            contact_type& c = *i;
-                        
+            contact_type& c = **i;
+			
             // 押し出し
             // α_i
             c.alpha =
-                c.u * c.B_point0->mass / c.B_point0->contact +
-                c.v * c.B_point1->mass / c.B_point1->contact +
-                c.w * c.B_point2->mass / c.B_point2->contact;
-            c.alpha /= ( c.A_point->mass / c.A_point->contact +
-                         c.alpha );
+                c.w * c.B_point0->mass / c.B_point0->contact +
+                c.u * c.B_point1->mass / c.B_point1->contact +
+                c.v * c.B_point2->mass / c.B_point2->contact;
+            c.alpha /= ( c.A_point->mass / c.A_point->contact + c.alpha );
             c.check();
                         
+			// Δt^2/miFi = Δt^2/mi * mi/Δt^2 * pv * αなので
+			// pv * α
             vector_type pushout =
-                c.A_point->penetration_vector * c.alpha;
+				( c.A_point->penetration_vector ) *
+				c.alpha;
 
-            c.A_point->tmp_velocity =
-                c.A_point->new_position -
-                c.A_point->old_position;
-            c.A_point->new_position += pushout;
-            c.A_point->process_flag = true;
-            c.A_point->pushout0 += pushout;
-            total_f += pushout * c.A_point->mass;
-            c.A_point->check();
+			c.A_point->active_contact_pushout = pushout;
+			c.A_point->check();
         }
 
+#if 1
         // ..passive apply
         for( typename contacts_type::iterator i = contacts_.begin() ;
              i != contacts_.end() ;
              ++i ) {
-            contact_type& c = *i;
+            contact_type& c = **i;
 
-            if( c.B_point0->process_flag &&
-                c.B_point1->process_flag &&
-                c.B_point2->process_flag ) { continue; }
+            vector_type fi_dt =
+				c.A_point->active_contact_pushout *
+				c.A_point->mass;
 
-            real_type ralpha = c1 - c.alpha;
-            real_type f0 =
-                ( c.u *
-                  c.B_point0->mass /
-                  c.B_point0->contact ) *
-                ralpha;
-            real_type f1 =
-                ( c.v *
-                  c.B_point1->mass /
-                  c.B_point1->contact ) *
-                ralpha;
-            real_type f2 =
-                ( c.w *
-                  c.B_point2->mass /
-                  c.B_point2->contact ) *
-                ralpha;
-            real_type fTi = f0 + f1 + f2;
-                        
-            // local force equilibrium
-            // c.alpha * c.A_point->mass / c.A_point->contact
-            //    == f0 + f1 + f2; // (17)
-                        
-            // real_type q =
-            //     c.alpha * c.A_point->mass / c.A_point->contact;
-
-            apply_passive_contact( c, c.B_point0, f0, total_f );
-            apply_passive_contact( c, c.B_point1, f1, total_f );
-            apply_passive_contact( c, c.B_point2, f2, total_f );
+			vector_type pushout0 = fi_dt * ( -c.B_point0->invmass * c.w );
+			vector_type pushout1 = fi_dt * ( -c.B_point1->invmass * c.u );
+			vector_type pushout2 = fi_dt * ( -c.B_point2->invmass * c.v );
+			c.B_point0->passive_contact_pushout += pushout0;
+			c.B_point1->passive_contact_pushout += pushout1;
+			c.B_point2->passive_contact_pushout += pushout2;
         }
+#endif
+
+		// pushout適用
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+
+			vector_type v = c.A_point->active_contact_pushout;
+			if( length_sq( c.A_point->active_contact_pushout ) <
+				length_sq( c.A_point->passive_contact_pushout ) ) {
+				v = c.A_point->passive_contact_pushout;
+				c.A_point->active_contact_pushout = zero;
+			} else {
+				c.A_point->passive_contact_pushout = zero;
+			}
+
+			c.A_point->new_position += v;
+			c.A_point->tmp_velocity =
+				c.A_point->new_position -
+				c.A_point->old_position;
+			c.A_point->process_flag = true;
+		}
 
 #if 1
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+			if( !c.B_point0->process_flag ) {
+				c.B_point0->new_position +=
+					c.B_point0->passive_contact_pushout;
+				c.B_point0->process_flag = true;
+			}
+			if( !c.B_point1->process_flag ) {
+				c.B_point1->new_position +=
+					c.B_point1->passive_contact_pushout;
+				c.B_point1->process_flag = true;
+			}
+			if( !c.B_point2->process_flag ) {
+				c.B_point2->new_position +=
+					c.B_point2->passive_contact_pushout;
+				c.B_point2->process_flag = true;
+			}
+		}
+#endif
+
+#if 0
         // 誤差修正
-        // ... 誤差がたいした量じゃないから
-        //     効いてるのか効いてないのかわからない……
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+
+			c.A_point->process_flag = false;
+			c.A_point->penetration_error =
+				c.A_point->penetration_vector * real_type( 3 )+
+				( c.B_point0->penetration_vector +
+				  c.B_point1->penetration_vector +
+				  c.B_point2->penetration_vector );
+			c.A_point->check();
+        }
+
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+			if( c.A_point->process_flag ) { continue; }
+			c.A_point->process_flag = true;
+
+			c.A_point->penetration_error /= 3.0f;
+			c.A_point->new_position -= c.A_point->penetration_error;
+			c.A_point->active_contact_pushout -= c.A_point->penetration_error;
+		}
+#endif
+		
+#if 1
+        // 摩擦計算
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+			c.A_point->process_flag = false;
 
 #if 0
-        char buffer [256];
-        sprintf( buffer, "total penetration error: %f, %f, %f\n",
-                 total_f.x, total_f.y, total_f.z );
-        OutputDebugStringA( buffer );
+			if( length( c.A_point->active_contact_pushout ) <
+				length( c.A_point->passive_contact_pushout ) ) {
+				dprintf_real( "p" );
+			} else {
+				dprintf_real( "a" );
+			}
 #endif
 
-        // ..penetration vectorの設定
-        for( typename contacts_type::iterator i = contacts_.begin() ;
-             i != contacts_.end() ;
-             ++i ) {
-            contact_type& c = *i;
-            c.A_point->penetration_error = 0;
-        }
+			vector_type nsrc = c.A_point->active_contact_pushout;
+			// passive_contact_pushoutは無視してよい
+			real_type nlen = length( nsrc );
+			if( nlen < epsilon() ) { continue; }
 
-        //// 影響ratioの取得
-        real_type total_penetration_error = 0;
-        for( typename contacts_type::iterator i = contacts_.begin() ;
-             i != contacts_.end() ;
-             ++i ) {
-            contact_type& c = *i;
-                        
-            const vector_type& penetration =
-                c.A_point->penetration_vector;
-            real_type e = vector_traits::length(
-                penetration + c.B_point0->penetration_vector + 
-                penetration + c.B_point1->penetration_vector +
-                penetration + c.B_point2->penetration_vector );
-            c.A_point->penetration_error += e;
-            total_penetration_error += e;
-        }
-#if 0
-        {
-            char buffer [256];
-            sprintf( buffer, "total penetration error: %f\n",
-                     total_penetration_error );
-            OutputDebugStringA( buffer );   
-        }
-#endif
-                
-        if( 0 < total_penetration_error ) { 
-            real_type rd = c1 / total_penetration_error;
+			vector_type n = nsrc * ( real_type(1) / nlen );
+			
+			vector_type va = c.A_point->tmp_velocity;
 
-            // penetration_errorに応じて配分
-            for( typename contacts_type::iterator i =
-                     contacts_.begin() ;
-                 i != contacts_.end() ;
-                 ++i ) {
-                contact_type& c = *i;
+            vector_type vb =
+				c.B_point0->tmp_velocity * c.w +
+				c.B_point1->tmp_velocity * c.u +
+				c.B_point2->tmp_velocity * c.v;
 
-                vector_type v =
-                    total_f * 
-                    ( c.A_point->penetration_error * rd );
-                c.A_point->pushout0 -= v * c.A_point->invmass;
-                c.A_point->check();
-            }
-        }
-#endif
-                
-        // 摩擦
-        for( typename contacts_type::iterator i = contacts_.begin() ;
-             i != contacts_.end() ;
-             ++i ) {
-            contact_type& c = *i;
+			real_type mu = c.A_point->friction;
 
-            vector_type tv = ( ( c.B_point0->tmp_velocity ) +
-                               ( c.B_point1->tmp_velocity ) +
-                               ( c.B_point2->tmp_velocity ) ) *
-                real_type( 1.0 / 3.0 );
-            vector_type pv = ( c.A_point->tmp_velocity );
-            vector_type rv = pv - tv; // 相対速度
+			vector_type u = ( vb - va ) * c.alpha;
+			vector_type un = n * dot( n, u );
+			vector_type ut = u - un; // tangential velocity
 
-            vector_type penetration =
-                c.A_point->pushout0 + c.A_point->pushout1;
+			real_type friction = nlen * mu;
+			real_type max_friction = length( ut );
+			if( max_friction < friction ) { friction = max_friction; }
 
-            real_type ndotn =
-                math< Traits >::dot( penetration, penetration );
-            if( ndotn < math< Traits >::epsilon() ) { continue; }
-            real_type rndotn = real_type( 1.0 ) / ndotn;
-            real_type vdotn =
-                math< Traits >::dot( penetration, rv );
-            real_type plen =
-                math< Traits >::length( penetration );
-
-            // 相対速度の衝突面の法線への射影に比例
-            real_type friction0 =
-                ( c.A_point->friction * 3 +
-                  c.B_point0->friction +
-                  c.B_point1->friction +
-                  c.B_point2->friction ) / 6;
-            real_type friction = math< Traits >::clip(
-                - vdotn * rndotn * plen * friction0 *
-                c.A_point->mass );
-                                
-            vector_type& op = c.A_point->old_position;
-            vector_type& np = c.A_point->new_position;
-
-            np = op +
-                ( np - op ) * ( real_type( 1.0 ) - friction );
+			c.A_point->friction_vector =
+				ut * friction * ( real_type(1) / max_friction );
             c.A_point->check();
         }
+#endif
+		//dprintf_real( "\n" );
+
+		// 摩擦適用
+		vector_type total_friction = zero;
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+			if( c.A_point->process_flag ) { continue; }
+			c.A_point->process_flag = true;
+
+			c.A_point->new_position += c.A_point->friction_vector;
+			total_friction += c.A_point->friction_vector;
+		}
+
+#if 0
+		// 対応チェック
+		std::map< int, std::vector< int > > m;
+        for( typename contacts_type::iterator i = contacts_.begin() ;
+             i != contacts_.end() ;
+             ++i ) {
+            contact_type& c = **i;
+            c.check();
+			m[c.A_point->id].push_back( c.B_point0->id );
+			m[c.A_point->id].push_back( c.B_point1->id );
+			m[c.A_point->id].push_back( c.B_point2->id );
+		}
+
+		for( std::map< int, std::vector< int > >::const_iterator i =
+				 m.begin() ;
+			 i != m.end() ;
+			 ++i ) {
+
+			dprintf_real( "m: %d: ", (*i).first );
+			const std::vector< int >& v = (*i).second;
+			for( std::vector< int >::const_iterator j = v.begin() ;
+				 j != v.end() ;
+				 ++j ) {
+				dprintf_real( "%d, ", (*j) );
+			}
+			dprintf_real( "\n" );
+		}
+		dprintf_real( "\n" );
+#endif
 
     }
 
@@ -1516,7 +1621,7 @@ private:
         for( typename contacts_type::iterator i = contacts_.begin() ;
              i != contacts_.end() ;
              ++i ) {
-            contact_type& c = *i;
+            contact_type& c = **i;
 
             c.A_body->get_actual_contact_list().push_back( c.B_body );
             c.B_body->get_actual_contact_list().push_back( c.A_body );
@@ -1761,6 +1866,21 @@ private:
 
 private:
     // utility
+	real_type epsilon()
+	{
+		return math< Traits >::epsilon();
+	}
+
+	real_type length( const vector_type& v )
+	{
+		return math< Traits >::length( v );
+	}
+
+	real_type length_sq( const vector_type& v )
+	{
+		return math< Traits >::length_sq( v );
+	}
+
     real_type dot( const vector_type& a, const vector_type& b )
     {
         return math< Traits >::dot( a, b );
@@ -1769,22 +1889,6 @@ private:
     vector_type cross( const vector_type& a, const vector_type& b )
     {
         return math< Traits >::cross( a, b );
-    }
-
-    void apply_passive_contact(
-        contact_type&    c,
-        Point< Traits >* p,
-        real_type        f,
-        vector_type&     total_f )
-    {
-        if( p->process_flag ) { return; }
-
-        vector_type pushout = c.A_point->penetration_vector * f;
-        p->tmp_velocity = p->new_position - p->old_position;
-        p->new_position -= pushout;
-        p->pushout1 -= pushout;
-        total_f -= pushout * p->mass;
-        p->check();
     }
 
 private:
@@ -1819,11 +1923,8 @@ private:
         body_type* a_body = a_collidable->get_body();
         body_type* b_body = b_collidable->get_body();
 
-        if( dynamic_cast< Volume< Traits >* >( a_body ) &&
-            dynamic_cast< Volume< Traits >* >( b_body ) ) {
-            // 両方volumeなら何もしない
-            return;
-        }
+		assert( !( dynamic_cast< Volume< Traits >* >( a_body ) &&
+				   dynamic_cast< Volume< Traits >* >( b_body ) ) );
 
         if( !a_body->get_positive() && !b_body->get_positive() ) { 
             // 両方非攻撃性オブジェクトなら何もしない
@@ -1846,26 +1947,32 @@ private:
 
         if( a_body->get_alive() && a_body->get_influential() &&
             b_body->get_alive() && b_body->get_influential() ) {
-            vector_type vv = ( rs->target->new_position - rs->source );
-            vector_type v = vv * ( real_type( 1.0 ) - rs->uvt.z );
-            vector_type penetration =
-                plane_normal * dot( -v, plane_normal );
 
-            contact_type c;
-            c.A_body = a_body;
-            c.B_body = b_body;
-            c.A_point = rs->target;
-            c.B_point0 = rs->nearest.p0;
-            c.B_point1 = rs->nearest.p1;
-            c.B_point2 = rs->nearest.p2;
-            c.A_point->penetration_vector = penetration;
-            c.u = rs->uvt.x;
-            c.v = rs->uvt.y;
-            c.w = real_type( 1.0 ) - c.u - c.v;
-            c.alpha = 0;
-            c.check();
+			if( rs->uvt.z < rs->target->penetration_magnifier ) {
+				rs->target->penetration_magnifier = rs->uvt.z;
 
-            contacts_.push_back( c );
+				vector_type vv = ( rs->target->new_position - rs->source );
+				vector_type v = vv * ( real_type( 1.0 ) - rs->uvt.z );
+				vector_type penetration =
+					plane_normal * dot( -v, plane_normal );
+
+				contact_type* c = (contact_type*)contact_pool_.allocate();
+				c->A_body = a_body;
+				c->B_body = b_body;
+				c->A_point = rs->target;
+				c->B_point0 = rs->nearest.p0;
+				c->B_point1 = rs->nearest.p1;
+				c->B_point2 = rs->nearest.p2;
+				c->A_point->penetration_vector = penetration;
+				c->u = rs->uvt.x;
+				c->v = rs->uvt.y;
+				c->w = real_type( 1.0 ) - c->u - c->v;
+				c->t = rs->uvt.z;
+				c->alpha = 0;
+				c->check();
+
+				contacts_.push_back( c );
+			}
         } else {
             constraint_type c;
             c.A_body          = a_body;
@@ -1888,7 +1995,8 @@ private:
         point_type* B_point2,
         real_type u,
         real_type v,
-        real_type w )
+        real_type w,
+		real_type t )
     {
         if( !A_body->get_positive() && !B_body->get_positive() ) { 
             // 両方非攻撃性オブジェクトなら何もしない
@@ -1907,24 +2015,30 @@ private:
 
         if( A_body->get_alive() && A_body->get_influential() &&
             B_body->get_alive() && A_body->get_influential() ) {
-            contact_type c;
-            c.A_body = A_body;
-            c.B_body = B_body;
-            c.A_point = A_point;
-            c.B_point0 = B_point0;
-            c.B_point1 = B_point1;
-            c.B_point2 = B_point2;
-            c.u = u;
-            c.v = v;
-            c.w = w;
-            c.alpha = 0;
-            c.check();
 
-            contacts_.push_back( c );
+			if( t < A_point->penetration_magnifier ) {
+				A_point->penetration_magnifier = t;
+
+				contact_type* c = (contact_type*)contact_pool_.allocate();
+				c->A_body = A_body;
+				c->B_body = B_body;
+				c->A_point = A_point;
+				c->B_point0 = B_point0;
+				c->B_point1 = B_point1;
+				c->B_point2 = B_point2;
+				c->u = u;
+				c->v = v;
+				c->w = w;
+				c->t = t;
+				c->alpha = 0;
+				c->check();
+
+				contacts_.push_back( c );
+			}
         } else {
-            vector_type& v0 = B_point0->new_position;
-            vector_type& v1 = B_point1->new_position;
-            vector_type& v2 = B_point2->new_position;
+            const vector_type& v0 = B_point0->new_position;
+            const vector_type& v1 = B_point1->new_position;
+            const vector_type& v2 = B_point2->new_position;
                         
             vector_type plane_normal = cross( v1 - v0, v2 - v0 );
             math< Traits >::normalize_f( plane_normal );
@@ -1977,10 +2091,13 @@ private:
 private:
     int                                    body_id_seed_;
     real_type                              time_;
+	real_type							   previous_idt_;
     bodies_type                            bodies_;
     std::vector< collision_resolver_type > collision_resolver_table_;
     constraints_type                       constraints_;
     contacts_type                          contacts_;
+	default_page_provider					page_provider_;
+	fixed_pool< sizeof( contact_type ), default_page_provider > contact_pool_;
     //BroadSpatialHash< Traits >      broad_spatial_hash_;
     aabb_tree_type                         aabbt_;
     ray_processor_type                     ray_processor_;
@@ -1990,7 +2107,6 @@ private:
     ClothPointTetrahedronSpatialHash< Traits > cloth_point_tetrahedron_spatial_hash_;
     ClothSpikeFaceSpatialHash< Traits >        cloth_spike_face_spatial_hash_;
     ClothEdgeFaceSpatialHash< Traits >      cloth_edge_face_spatial_hash_;
-
 
 };
 

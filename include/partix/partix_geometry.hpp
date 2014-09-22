@@ -22,6 +22,7 @@ template < class Traits >
 struct Face {
 	typedef typename Traits::index_type index_type;
 
+	int id;
 	index_type i0;
 	index_type i1;
 	index_type i2;

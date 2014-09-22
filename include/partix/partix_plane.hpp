@@ -61,8 +61,7 @@ public:
     void            teleport( const vector_type& ) { }
 
     void            begin_frame() {}
-    void            apply_forces( real_type, real_type ) {}
-    void            update_velocity( real_type, real_type ) { return; }
+	void			compute_motion( real_type, real_type, real_type ) {}
     void            update_frozen( real_type, real_type ) {}
     void            match_shape() {}
     void            restore_shape( real_type, real_type, int ) {}

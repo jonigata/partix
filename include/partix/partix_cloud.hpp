@@ -35,18 +35,25 @@ public:
 	{
 		vector_type v0 = math< Traits >::vector_zero();
 		point_type p;
+		p.id					= int( points_.size() );
 		p.source_position		= v;
 		p.old_position			= v;
 		p.new_position			= v;
 		p.ideal_offset			= v0;
 		p.velocity				= v0;
 		p.forces				= v0;
-		p.pushout0				= v0;
-		p.pushout1				= v0;
+		p.constraint_pushout	= v0;
+		p.active_contact_pushout= v0;
+		p.passive_contact_pushout= v0;
+		p.friction_vector		= v0;
+		p.penetration_vector	= v0;
+		p.view_vector0			= v0;
+		p.view_vector1			= v0;
 		p.friction				= Traits::kinetic_friction();
 		p.mass					= mass;
 		p.invmass				= 1.0f / mass;
 		p.collided				= false;
+		p.free_position			= v;
 		points_.push_back( p );
 	}
 	points_type&	get_points() { return points_; }
@@ -54,23 +61,8 @@ public:
 	load_type		load;
 
 public:
-	void update_velocity( real_type dt, real_type idt )
-	{
-		vector_type v0 = math< Traits >::vector_zero();
-
-		for( typename points_type::iterator i = points_.begin() ;
-			 i != points_.end() ;
-			 ++i ) {
-			point_type& p = *i;
-			p.pushout0 = v0;
-			p.pushout1 = v0;
-			p.velocity = ( p.new_position - p.old_position ) * idt;
-			p.old_position = p.new_position;
-			p.energy = vector_traits::length_sq( p.velocity ) * p.mass * 0.5f;
-		}
-	}
-
-	void apply_forces(
+	void compute_motion(
+		real_type pdt,
 		real_type dt,
 		real_type idt,
 		const vector_type& local_force,
@@ -78,32 +70,49 @@ public:
 		real_type drag_coefficient,
 		real_type dump_factor )
 	{
+		// google: "Time-Corrected Verlet"
+
+		// 以下p.velocityは基本的にテンポラリ/ユーザ参照用で
+		// 積分の入力としては使っていない
+
 		vector_type v0 = math< Traits >::vector_zero();
-				
-		for( typename points_type::iterator j = points_.begin() ;
-			 j != points_.end() ;
-			 ++j ) {
-			point_type& p = *j;
-			p.pushout0 = v0;
-			p.pushout1 = v0;
-								
+
+		for( typename points_type::iterator i = points_.begin() ;
+			 i != points_.end() ;
+			 ++i ) {
+
+			point_type& p = *i;
+
+			// pushoutのリセット
+			p.constraint_pushout = v0;
+			p.active_contact_pushout = v0;
+			p.passive_contact_pushout = v0;
+
+			// 速度
+			p.velocity = ( p.new_position - p.old_position ) * pdt * idt;
+			p.old_position = p.new_position;
+			p.energy = math< Traits >::length_sq( p.velocity ) * p.mass * 0.5f;
+
 			// 力
-			p.velocity +=
+			vector_type accel = 
 				( p.forces + local_force ) * ( dt * p.invmass ) +
 				global_force * dt;
 			p.forces = v0;
+			p.velocity += accel;
 								
 			// 圧力dumping (adhoc, 静止に利用)
 			//real_type dump_factor = 1.0f;
 								
 			// 抗力
-			real_type velocity_length_sq = vector_traits::length_sq( p.velocity );
+			real_type velocity_length_sq =
+				math< Traits >::length_sq( p.velocity );
 			real_type drag = velocity_length_sq * drag_coefficient;
 			real_type drag_factor = 1.0f - drag;
 			if( drag_factor < 0 ) { drag_factor = 0; }
 								
 			p.velocity *= drag_factor * dump_factor;
-			p.new_position = p.old_position + p.velocity * dt;
+			p.tmp_velocity = p.velocity * dt;
+			p.new_position = p.old_position + p.tmp_velocity;
 		}
 	}
 

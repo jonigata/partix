@@ -20,14 +20,16 @@ public:
     typedef typename Traits::vector_type            vector_type;
     typedef typename Traits::point_load_type        load_type;
 
-    vector_type     old_position;           // 古い位置
+	int				id;
     vector_type     new_position;           // 新しい位置
+    vector_type     old_position;           // 古い位置
     vector_type     velocity;               // 現在の速度
     vector_type     normal;                 // 頂点法線
     vector_type     source_position;        // 初期位置
     vector_type     ideal_offset;           // 重心からのオフセット(変形済み)
-    vector_type     pushout0;               // 制約による移動
-    vector_type     pushout1;               // 制約による移動
+    vector_type     constraint_pushout;		// 制約による移動
+    vector_type     active_contact_pushout; // 接触による移動(能動)
+    vector_type     passive_contact_pushout;// 接触による移動(受動)
     vector_type     forces;                 // 力
     real_type       friction;               // 摩擦
     real_type       mass;                   // 質量
@@ -42,17 +44,22 @@ public:
     unsigned char   raytest;                // raytest用実行ステート
     real_type       energy;                 // 運動エネルギー
     real_type       penetration_depth_numerator;
-    // penetration depthの分子
+											// penetration depthの分子
     vector_type     penetration_direction_numerator;
-    // penetration dirの分子
+											// penetration dirの分子
     real_type       penetration_denominator; // penetrationの分母
     vector_type     penetration_vector;     // penetration vector
-    real_type       penetration_error;      // penetration depthの誤差
+	real_type		penetration_magnifier;	// c.t
+	vector_type		friction_vector;		// friction vector
+    vector_type     penetration_error;      // penetration depthの誤差
     vector_type     tmp_velocity;           // 中間速度
     real_type       contact;
-    // 1+Σ^n_j=1.hji(barycentric座標のsum, cの分母)
+							// 1+Σ^n_j=1.hji(barycentric座標のsum, cの分母)
     int             cloth_flags;            // cloth用bitflags
     void*           ray_slot;               // rayprocess用データ
+	vector_type		view_vector0;			// 後で消す
+	vector_type		view_vector1;			// 後で消す
+	vector_type		free_position;			// 後で消す
 
     void check()
     {

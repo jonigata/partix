@@ -1,0 +1,9 @@
+..\Release\mqo2tcf chamfer.mqo chamfer.tcf
+..\Release\mqo2tcf cone.mqo cone.tcf
+..\Release\mqo2tcf cube.mqo cube.tcf
+..\Release\mqo2tcf field.mqo field.tcf
+..\Release\mqo2tcf pig.mqo pig.tcf
+..\Release\mqo2tcf sphere.mqo sphere.tcf
+..\Release\mqo2tcf torus.mqo torus.tcf
+..\Release\mqo2tcf prism.mqo prism.tcf
+..\Release\mqo2tcf tetra.mqo tetra.tcf

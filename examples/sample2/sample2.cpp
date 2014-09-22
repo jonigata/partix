@@ -1,4 +1,4 @@
-// $Id: sample2.cpp 32 2008-10-25 12:19:56Z Naoyuki.Hirayama $
+// $Id: sample2.cpp 34 2008-12-08 07:16:36Z Naoyuki.Hirayama $
 
 #include "zw/window_manager.hpp"
 #include "zw/basic_window.hpp"
@@ -13,6 +13,7 @@
 #include "room.hpp"
 #include "texture_cache.hpp"
 #include "mouse_dispatcher.hpp"
+#include "draw_physie.hpp"
 
 /*===========================================================================*/
 /*!
@@ -261,6 +262,10 @@ public:
         mode_ = 0;
         active_model_count_ = 0;
         target_model_count_ = 1;
+		global_accel_modifier_ = 1;
+		gravity_fixed_ = false;
+		show_wire_ = false;
+		// new initialization here
 
         world_->restart();
     }
@@ -296,27 +301,36 @@ public:
                     models_[i].get() );
                                 
                 // d‚³A–€ŽC
-                v->set_restore_factor( 0.3f );
-                v->set_stretch_factor( 0.7f );
+                v->set_restore_factor( 0.7f );
+                v->set_stretch_factor( 0.3f );
 
                 tetra_type::points_type& points =
                     v->get_mesh()->get_points();
                 int n = int( points.size() );
                 for( int j = 0 ; j < n ; j++ ) {
                     point_type& p = points[j];
-                    p.friction = 40.0f;
+                    p.friction = 0.8f;
                 }
             }                        
             mode_ = 1;
         }
         if( m.code == '2' && mode_ == 1 ) {
-            target_model_count_ = 5;
+            target_model_count_ = 3;
             mode_ = 2;
         }
         if( m.code == '3' && mode_ == 2 ) {
             target_model_count_ = 10;
             mode_ = 3;
         }
+		if( m.code == 'g' ) {
+			global_accel_modifier_ = global_accel_modifier_ == 1 ? 100 : 1;
+		}
+		if( m.code == 'f' ) {
+			gravity_fixed_ = !gravity_fixed_;
+		}
+		if( m.code == 's' ) {
+			show_wire_ = !show_wire_;
+		}
     }
 
     // WM_?MOUSE*‚É‘Î‰ž
@@ -427,21 +441,24 @@ private:
         }
 
         // d—Í•ûŒü
-        D3DXVECTOR3 view_point;
-        camera_->make_view_point( view_point );
-        if( view_point != prev_view_point_ ) {
-            D3DXVECTOR3 up( 0, 1.0f, 0 );
-            D3DXVECTOR3 cross0 = cross( view_point, up );
-            D3DXVECTOR3 cross1 = cross( cross0, view_point );
-            normalize_f( cross1 );
-            prev_view_point_ = view_point;
+		if( !gravity_fixed_ ) {
+			D3DXVECTOR3 view_point;
+			camera_->make_view_point( view_point );
+			if( view_point != prev_view_point_ ) {
+				D3DXVECTOR3 up( 0, 1.0f, 0 );
+				D3DXVECTOR3 cross0 = cross( view_point, up );
+				D3DXVECTOR3 cross1 = cross( cross0, view_point );
+				normalize_f( cross1 );
+				prev_view_point_ = view_point;
 
-            for( size_t i = 0 ; i < bodies_.size() ; i++ ) {
-                bodies_[i]->set_frozen( false );
-                bodies_[i]->set_global_force(
-                    cross1 * -9.8f * 2.0f );
-            }
-        }
+				for( size_t i = 0 ; i < bodies_.size() ; i++ ) {
+					bodies_[i]->set_frozen( false );
+					bodies_[i]->set_global_force(
+						cross1 * -9.8f * 2.0f *
+						float(global_accel_modifier_) );
+				}
+			}
+		}
 
         draw();
     }
@@ -750,6 +767,9 @@ private:
                 &volume->get_deformed_matrix() );
 
             shape_->render( device );
+			if( show_wire_ ) {
+				draw_physie( device, volume );
+			}
         }
     }
 
@@ -781,6 +801,10 @@ private:
     int             active_model_count_;
 
     D3DXVECTOR3     prev_view_point_;
+	int				global_accel_modifier_;
+	bool			gravity_fixed_;
+	bool			show_wire_;
+	// new member variable here
 
 };
 

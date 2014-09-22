@@ -84,13 +84,9 @@ public:
 	void teleport( const vector_type& v ) { teleport_internal( v ); }
 
 	void begin_frame() { begin_frame_internal(); }
-	void update_velocity( real_type dt, real_type idt )
+	void compute_motion( real_type pdt, real_type dt, real_type idt )
 	{
-		update_velocity_internal( dt, idt );
-	}
-	void apply_forces( real_type dt, real_type idt )
-	{
-		apply_forces_internal( dt, idt );
+		compute_motion_internal( pdt, dt, idt );
 	}
 	void match_shape()
 	{
@@ -191,24 +187,10 @@ private:
 		}
 	}
 
-	void update_velocity_internal( real_type dt, real_type idt )
+	void compute_motion_internal( real_type pdt, real_type dt, real_type idt )
 	{
 		if( touch_level_ == 0 ) {
 			if( !this->get_alive() ) { return; }
-			if( this->get_frozen() && !this->get_defrosting() ) { return; }
-		}
-		for( typename clouds_type::const_iterator i = this->clouds_.begin() ;
-			 i != this->clouds_.end() ;
-			 ++i ) {
-			cloud_type* c = *i;
-			c->update_velocity( dt, idt );
-		}
-	}
-
-	void apply_forces_internal( real_type dt, real_type idt )
-	{
-		if( touch_level_ == 0 ) {
-			if( !this->get_alive() ) { return ; }
 			if( this->get_frozen() && !this->get_defrosting() ) { return; }
 		}
 
@@ -220,7 +202,8 @@ private:
 			 i != this->clouds_.end() ;
 			 ++i ) {
 			cloud_type* c = *i;
-			c->apply_forces(
+			c->compute_motion(
+				pdt, 
 				dt,
 				idt,
 				this->get_force(),

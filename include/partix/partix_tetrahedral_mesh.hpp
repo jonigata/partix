@@ -59,6 +59,7 @@ public:
 	void add_face( index_type i0, index_type i1, index_type i2 )
 	{
 		face_type f; f.i0 = i0; f.i1 = i1; f.i2 = i2;
+		f.id = int( faces_.size() );
 		faces_.push_back( f );
 	}
 	void add_tetrahedron(
@@ -191,6 +192,7 @@ private:
 			e.indices.i0 = i0;
 			e.indices.i1 = i1;
 			e.border = false;
+			e.collision_normal = math< Traits >::vector_zero();
 			edges_.push_back( e );
 			ss.insert( i1 );
 		}

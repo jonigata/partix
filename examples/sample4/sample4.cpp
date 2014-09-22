@@ -1,4 +1,4 @@
-// $Id: sample4.cpp 32 2008-10-25 12:19:56Z Naoyuki.Hirayama $
+// $Id: sample4.cpp 34 2008-12-08 07:16:36Z Naoyuki.Hirayama $
 
 #include "zw/window_manager.hpp"
 #include "zw/basic_window.hpp"
@@ -86,7 +86,7 @@ struct D3DXPartixTraits {
     struct point_load_type {};
 
     static float speed_drag_coefficient() { return  0.0001f; }
-    static float kinetic_friction() { return 40.0f; }
+    static float kinetic_friction() { return 0.4f; }
 
     static float freeze_threshold_energy() { return 2.0f; }
     static float freeze_duration() { return 0.5f; }

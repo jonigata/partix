@@ -1,4 +1,4 @@
-// $Id: sample0.cpp 32 2008-10-25 12:19:56Z Naoyuki.Hirayama $
+// $Id: sample0.cpp 34 2008-12-08 07:16:36Z Naoyuki.Hirayama $
 
 // ŠÂ‹«”ñˆË‘¶‚Ìphysics sample
 // ƒŒƒ“ƒ_ƒŠƒ“ƒO‚ÍSVG‚ğ¶¬‚·‚éB
@@ -62,6 +62,7 @@ struct SampleTraits {
     struct cloud_load_type {};
     struct point_load_type {};
 
+	static float tick() { return SIMULATION_TICK; }
     static float speed_drag_coefficient() { return 0.0001f; }
     static float kinetic_friction() { return 40.0f; }
 

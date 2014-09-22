@@ -27,6 +27,7 @@ public:
 	real_type				u; // barycentric coordinates for p0
 	real_type				v; // barycentric coordinates for p1
 	real_type				w; // barycentric coordinates for p2
+	real_type				t; // intersect. pos = ap->penetration_vector * t;
 	real_type				alpha; // pushout factor
 
 	void check()

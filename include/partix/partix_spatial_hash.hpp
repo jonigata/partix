@@ -79,7 +79,7 @@ public:
 		real_type       gridsize,
 		int             tablesize )
 		: SpatialHashBase< Traits >( gridsize, tablesize ),
-		  pool_( page_provider_ )
+		  pool_( page_provider_, "dsh" )
 	{
 		table_ = new InternalNodePtr[ tablesize ];
 		memset( table_, 0, sizeof( InternalNodePtr ) * tablesize );
@@ -162,10 +162,11 @@ public:
 public:
 	IndirectSpatialHash(
 		real_type       gridsize,
-		int             tablesize )
+		int             tablesize,
+		const char*		name )
 		: SpatialHashBase< Traits >( gridsize, tablesize ),
-		  pool0_( page_provider_ ),
-		  pool1_( page_provider_ )
+		  pool0_( page_provider_, name ),
+		  pool1_( page_provider_, name )
 	{
 		table_ = new InternalRefererPtr[ tablesize ];
 		memset( table_, 0, sizeof( InternalRefererPtr ) * tablesize );
@@ -316,8 +317,8 @@ private:
 
 public:
 	SegmentTriangleSpatialHash( real_type gridsize, int tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "st0" ),
+		  passive_table_( gridsize, tablesize, "st1" )
 	{
 	}
 	~SegmentTriangleSpatialHash()
@@ -651,8 +652,8 @@ private:
 
 public:
 	RayTriangleSpatialHash( real_type gridsize, int tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "rt0" ),
+		  passive_table_( gridsize, tablesize, "rt1" )
 	{
 	}
 	~RayTriangleSpatialHash()
@@ -980,7 +981,7 @@ private:
 public:
 	PointTetrahedronSpatialHash( real_type gridsize, int tablesize )
 		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		  passive_table_( gridsize, tablesize, "pt" )
 	{
 	}
 	~PointTetrahedronSpatialHash()
@@ -1168,9 +1169,8 @@ private:
 			const vector_type& v2 = qv[t.i2].new_position;
 
 			return math< Traits >::test_segment_triangle(
-				r0, r1, v0, v1,v2, uvt );
+				r0, r1, v0, v1, v2, uvt );
 		}
-        
         
 		const T& c_;
 	};
@@ -1179,8 +1179,8 @@ public:
 	EdgeFaceSpatialHash(
 		real_type      gridsize,
 		int             tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "ef0" ),
+		  passive_table_( gridsize, tablesize, "ef1" )
 	{
 	}
 	~EdgeFaceSpatialHash()
@@ -1327,6 +1327,7 @@ private:
 			vector_type uvt;
 			if( !collide( p, q, uvt ) ) { return false; }
 
+			std::swap( uvt.x, uvt.y ); // 裏表反転してあるから
 			c_( p->mesh, p->index, q->mesh, q->index, uvt );
 			return true;
 		}
@@ -1360,8 +1361,8 @@ private:
 
 public:
 	PenetrationFaceSpatialHash( real_type gridsize, int tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "pf0" ),
+		  passive_table_( gridsize, tablesize, "pf1" )
 	{
 	}
 	~PenetrationFaceSpatialHash()
@@ -1382,10 +1383,23 @@ public:
 
 		const point_type& v = p->get_points()[i];
 
+#if 0
+		// 原理的にpenetration_vectorそのままの長さで
+		// faceに刺さるとは限らないので、伸ばしておく
+		// TODO: このコード入れると安定度が下がる
+		real_type slen = length( v.penetration_vector );
+		if( slen < math< Traits >::epsilon() ) { return; }
+		real_type len = slen + sqrt( square( active_table_.gridsize() ) * 3 );
+
+		const vector_type& v0 = v.new_position;
+		vector_type v1 = v0 + v.penetration_vector * ( len / slen );
+#else
+		const vector_type& v0 = v.new_position;
+		vector_type v1 = v0 + v.penetration_vector;
+#endif
+
 		voxel_traverser< real_type, vector_type > vt(
-			v.new_position,
-			v.new_position + v.penetration_vector,
-			active_table_.gridsize() );
+			v0, v1, active_table_.gridsize() );
 
 		int x, y, z;
 		while( vt( x, y, z ) ) {
@@ -1528,7 +1542,7 @@ private:
 public:
 	ClothPointTetrahedronSpatialHash( real_type gridsize, int tablesize )
 		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		  passive_table_( gridsize, tablesize, "cp1" )
 	{
 	}
 	~ClothPointTetrahedronSpatialHash()
@@ -1731,8 +1745,8 @@ public:
 	ClothSpikeFaceSpatialHash(
 		real_type      gridsize,
 		int             tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "cs0" ),
+		  passive_table_( gridsize, tablesize, "cs1" )
 	{
 	}
 	~ClothSpikeFaceSpatialHash()
@@ -1924,8 +1938,8 @@ public:
 	ClothEdgeFaceSpatialHash(
 		real_type      gridsize,
 		int             tablesize )
-		: active_table_( gridsize, tablesize ),
-		  passive_table_( gridsize, tablesize )
+		: active_table_( gridsize, tablesize, "ce0" ),
+		  passive_table_( gridsize, tablesize, "ce1" )
 	{
 	}
 	~ClothEdgeFaceSpatialHash()

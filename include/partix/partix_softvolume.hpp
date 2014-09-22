@@ -35,7 +35,7 @@ public:
 
 template < class Traits >
 class SoftVolume : public Volume< Traits > {
-private:
+public:
 	typedef typename Traits::vector_traits	vector_traits;
 	typedef typename Traits::real_type		real_type;
 	typedef typename Traits::vector_type	vector_type;
@@ -62,8 +62,8 @@ public:
 		touch_level_	= 2;
 		current_center_ = initial_center_ =
 			math< Traits >::vector_zero();
-		restore_factor_ = 1.0f;
-		stretch_factor_ = 0.0f;
+		restore_factor_ = real_type(1);
+		stretch_factor_ = 0;
 		freezing_duration_ = 0;
 		crush_duration_ = 0;
 		debug_flag_ = false;
@@ -168,13 +168,9 @@ private:
 	{
 		begin_frame_internal();
 	}
-	void update_velocity( real_type dt, real_type idt )
+	void compute_motion( real_type pdt, real_type dt, real_type idt )
 	{
-		update_velocity_internal( dt, idt );
-	}
-	void apply_forces( real_type dt, real_type idt )
-	{
-		apply_forces_internal( dt, idt );
+		compute_motion_internal( pdt, dt, idt );
 	}
 	void match_shape()
 	{
@@ -310,16 +306,7 @@ private:
 		crushed_ = false;
 	}
 
-	void update_velocity_internal( real_type dt, real_type idt )
-	{
-		if( touch_level_ == 0 ) {
-			if( !this->get_alive() ) { return; }
-			if( this->get_frozen() && !this->get_defrosting() ) { return; }
-		}
-		this->get_mesh()->get_cloud()->update_velocity( dt, idt );
-	}
-
-	void apply_forces_internal( real_type dt, real_type idt )
+	void compute_motion_internal( real_type pdt, real_type dt, real_type idt )
 	{
 		if( touch_level_ == 0 ) {
 			if( !this->get_alive() ) { return; }
@@ -342,7 +329,8 @@ private:
 		}
 		real_type dump_factor = real_type( 1.0 );
 #endif
-		this->get_mesh()->get_cloud()->apply_forces(
+		this->get_mesh()->get_cloud()->compute_motion(
+			pdt,
 			dt,
 			idt,
 			this->get_force(),
@@ -404,7 +392,7 @@ private:
 		}
 
 		real_type ApqT[9];
-		math< Traits >::transpose_matrix( ApqT, Apq );
+ 		math< Traits >::transpose_matrix( ApqT, Apq );
 
 		real_type ApqT_Apq[9];
 		math< Traits >::multiply_matrix( ApqT_Apq, ApqT, Apq );
@@ -421,6 +409,9 @@ private:
 			R, Apq, inverse_sqrt_ApqT_Apq );
 				
 		real_type detR = math< Traits >::determinant_matrix( R );
+
+		
+#if 0
 		if( 0.7f < std::abs( 1.0f - detR ) ) {
 			// Rが壊れすぎ
 #if 0
@@ -435,17 +426,17 @@ private:
 			real_type detA =
 				math< Traits >::determinant_matrix( A );
 
-			if( 0.5f < std::abs( 1.0f - detA ) ) {	
+			if( 0.5f < std::abs( real_type( 1.0 ) - detA ) ) {	
 				// Aが壊れすぎ
-#if 0
+#if 1
 				char buffer[256];
 				sprintf( buffer, "det1: %f\n", detA );
 				OutputDebugStringA( buffer );
 #endif
 				crushed_ = true;
 			} else {
-#if 0
-				if( 0.4f < std::abs( 1.0f - detA ) ) {	
+#if 1
+				if( 0.4f < std::abs( real_type( 1.0 ) - detA ) ) {	
 					char buffer[256];
 					sprintf( buffer, "det2: %f\n", detA );
 					OutputDebugStringA( buffer );
@@ -459,10 +450,14 @@ private:
 				math< Traits >::multiply_matrix(
 					Adash, A, real_type( 1.0 ) / cbrt );
 								
+#if 0
 				// detがおかしいほど硬くなる
 				real_type stretch_factor =
 					stretch_factor_ - std::abs( 1.0f - detA );
 				if( stretch_factor < 0 ) { stretch_factor = 0; }
+#else
+				real_type stretch_factor = stretch_factor_;
+#endif
 
 				// detが小さいほどエネルギー喪失
 				real_type dump =
@@ -498,14 +493,12 @@ private:
 				math< Traits >::multiply_matrix(
 					G0, Adash, stretch_factor );
 				math< Traits >::multiply_matrix(
-					G1, R, 1.0f - stretch_factor );
+					G1, R, real_type( 1.0 ) - stretch_factor );
 
 				real_type G[9];
 				math< Traits >::add_matrix( G, G0, G1 );
 
-				real_type detG =
-					math< Traits >::determinant_matrix(
-						G );
+				real_type detG = math< Traits >::determinant_matrix( G );
 				if( 0.5f < detG ) { 
 					// マトリックスが正当なので承認
 					math< Traits >::copy_matrix( R_, R );
@@ -513,6 +506,37 @@ private:
 				}
 			}
 		}
+#else
+		real_type stretch_factor = stretch_factor_;
+
+		real_type A[9];
+		math< Traits >::multiply_matrix( A, Apq, Aqq_ );
+		real_type detA =
+			math< Traits >::determinant_matrix( A );
+
+		real_type cbrt = pow(
+			std::abs( detA ), real_type( 1.0/3.0 ) );
+
+		real_type Adash[9];
+		math< Traits >::multiply_matrix(
+			Adash, A, real_type( 1.0 ) / cbrt );
+
+		real_type G0[9];
+		real_type G1[9];
+		math< Traits >::multiply_matrix(
+			G0, Adash, stretch_factor );
+		math< Traits >::multiply_matrix(
+			G1, R, real_type( 1.0 ) - stretch_factor );
+
+		real_type G[9];
+		math< Traits >::add_matrix( G, G0, G1 );
+
+		// 常に承認
+		math< Traits >::copy_matrix( R_, R );
+		math< Traits >::copy_matrix( G_, G );
+
+#endif
+
 	}
 
 	void restore_shape_internal( real_type dt, real_type idt, int kmax )
@@ -565,9 +589,10 @@ private:
 
 			g += current_center_;
 								
-			vector_type velocity_dt =
-				( g - p.new_position ) * rest;
+			vector_type velocity_dt = ( g - p.new_position ) * rest;
+			p.free_position = p.new_position;
 			p.new_position += velocity_dt;
+			p.view_vector0 = p.new_position;
 			p.check();
 		}
 	}
@@ -659,8 +684,7 @@ private:
 						 i != points.end() ;
 						 ++i ) {
 						point_type& p = *i;
-						p.old_position =
-							p.new_position;
+						p.old_position = p.new_position;
 					}
 #endif
 
@@ -1020,10 +1044,11 @@ private:
 		for( typename points_type::iterator i = points.begin() ;
 			 i != points.end() ;
 			 ++i ) {
-			point_type& v = *i;
-			v.penetration_depth_numerator = 0;
-			v.penetration_direction_numerator = v0;
-			v.penetration_denominator = 0;
+			point_type& p = *i;
+			p.penetration_depth_numerator = 0;
+			p.penetration_direction_numerator = v0;
+			p.penetration_denominator = 0;
+			p.penetration_magnifier = math< Traits >::real_max();
 		}
 
 		edges_type& edges = this->get_mesh()->get_edges();
@@ -1032,89 +1057,69 @@ private:
 			 ++i ) {
 			edge_type& e = *i;
 			if( !e.border ) { continue; }
+
 			int ei0 = e.indices.i0;
 			int ei1 = e.indices.i1;
-
-#ifdef _WINDOWS						   
-#if 1
-			if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-				DebugBreak();
-			}
-			if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-				DebugBreak();
-			}
-#else
-			// WORKAROUND bug
-			if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-				continue;
-			}
-			if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-				continue;
-			}
-#endif
-#endif
 			if( points[ei1].collided ) { std::swap( ei0, ei1 ); }
-						
-			point_type& v0 = points[ei0];
-			point_type& v1 = points[ei1];						 
-
-#ifdef _WINDOWS
-			if( !v0.collided || v1.collided ) {
-				DebugBreak();
-			}
-#endif
+			point_type& p0 = points[ei0];
+			point_type& p1 = points[ei1];						 
 
 			if( e.t == math< Traits >::real_max() ) {
 				// edge-face intersection 失敗
-				// v0.penetration_denominator = 0;
+				// p0.penetration_denominator = 0;
 				// ↑元々なってる
 			} else {
 				// edge-face intersection 成功
-				vector_type ov =
-					( v1.new_position -
-					  v0.new_position ) * e.t;
-				real_type ovlensq =
-					vector_traits::length_sq( ov );
-				if( ovlensq < math< Traits >::epsilon() ) {
-					continue;
-				}
+				vector_type ov = ( p1.new_position - p0.new_position ) * e.t;
+				real_type ovlensq = vector_traits::length_sq( ov );
+				if( ovlensq < math< Traits >::epsilon() ) { continue; }
 
 				real_type omega = real_type( 1.0 ) / ovlensq;
 
-				v0.penetration_depth_numerator +=
-					omega * math< Traits >::dot(
-						ov, e.collision_normal );
-				v0.penetration_direction_numerator +=
+				p0.penetration_denominator += omega;
+				p0.penetration_depth_numerator +=
+					omega * math< Traits >::dot( ov, e.collision_normal );
+				p0.penetration_direction_numerator +=
 					e.collision_normal * omega;
-				v0.penetration_denominator += omega;
+
+#if 0
+				dprintf_real( "penetration0: %f, %f, %f, ( %f, %f, %f )\n",
+							  e.t,
+							  omega,
+							  math< Traits >::dot( ov, e.collision_normal ),
+							  e.collision_normal.x,
+							  e.collision_normal.y,
+							  e.collision_normal.z );
+#endif
 			}
 		}
 				
 		for( typename points_type::iterator i = points.begin() ;
 			 i != points.end() ;
 			 ++i ) {
-			point_type& v = *i;
-			if( !v.collided ) { continue; }
+			point_type& p = *i;
+			if( !p.collided ) { continue; }
 
-			vector_type& v0 = v.penetration_direction_numerator;
+			vector_type& v0 = p.penetration_direction_numerator;
 			real_type v0len = vector_traits::length( v0 );
-			if( v0len * v.penetration_denominator <
+			if( v0len * p.penetration_denominator <
 				math< Traits >::epsilon() ) { continue; }
 
-			v.penetration_vector =
-				v0 * ( v.penetration_depth_numerator /
-					   ( v0len * v.penetration_denominator ) );
+			p.penetration_vector =
+				v0 * ( p.penetration_depth_numerator /
+					   ( v0len * p.penetration_denominator ) );
 
 #if 0
-			if( isnan( v.penetration_vector.x ) ||
-				isnan( v.penetration_vector.y ) ||
-				isnan( v.penetration_vector.z ) ) {
-				DebugBreak();
-			}
+			dprintf_real( "penetration1: %f, %f, %f, %f\n",
+						  math< Traits >::length( p.penetration_vector ),
+						  math< Traits >::length(
+							  p.penetration_direction_numerator ),
+						  p.penetration_depth_numerator,
+						  p.penetration_denominator );
 #endif
-						
-			// normalize済み
 		}
+
+		//dprintf_real("\n" );
 	}
 
 	void propagate_penetration()
@@ -1133,44 +1138,19 @@ private:
 			v.propagating = false;
 		}
 
-		// border edgeに処理済マーク
-		// border pointに処理済マーク
+		// border point ( border edgeのcollided側 ) に処理済マーク
 		for( typename edges_type::iterator i = edges.begin() ;
 			 i != edges.end() ;
 			 ++i ) {
-			edge_type& e = *i;
+			const edge_type& e = *i;
 			if( !e.border ) { continue; }
 			int ei0 = e.indices.i0;
 			int ei1 = e.indices.i1;
 
-#ifdef _WINDOWS
-#if 1
-			if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-				DebugBreak();
-			}
-			if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-				DebugBreak();
-			}
-#else
-			// WORKAROUND bug
-			if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-				continue;
-			}
-			if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-				continue;
-			}
-#endif
-#endif
 			if( points[ei1].collided ) { std::swap( ei0, ei1 ); }
 
 			point_type& v0 = points[ei0];
-			point_type& v1 = points[ei1];
-
-#ifdef _WINDOWS
-			if( !v0.collided || v1.collided ) {
-				DebugBreak();
-			}
-#endif
+			//point_type& v1 = points[ei1];
 
 			v0.process_flag = true;
 		}
@@ -1186,69 +1166,50 @@ private:
 				int ei0 = e.indices.i0;
 				int ei1 = e.indices.i1;
 
-#ifdef _WINDOWS
-#if 1
-				if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-					DebugBreak();
-				}
-				if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-					DebugBreak();
-				}
-#else
-				// WORKAROUND bug
-				if( ei0 < 0 || int( points.size() ) <= ei0 ) {
-					continue;
-				}
-				if( ei1 < 0 || int( points.size() ) <= ei1 ) {
-					continue;
-				}
-#endif
-#endif
 				if( points[ei0].process_flag ==
 					points[ei1].process_flag ) {
 					continue;
 				}
-				if( !points[ei0].process_flag &&
-					points[ei1].process_flag ) {
+				if( !points[ei0].process_flag && points[ei1].process_flag ) {
 					std::swap( ei0, ei1 );
 				}
 
-				point_type& v0 = points[ei0];
-				point_type& v1 = points[ei1];
+				point_type& p0 = points[ei0]; // processed
+				point_type& p1 = points[ei1]; // not processed
 
-#ifdef _WINDOWS
-				if( !v0.collided ) {
-					DebugBreak();
-				}
-#endif
-								
-				if( !v1.collided ) { continue; }
+				if( !p1.collided ) { continue; }
 
-				if( v0.penetration_denominator <
-					math< Traits >::epsilon() ) {
+				if( p0.penetration_denominator < math< Traits >::epsilon() ) {
 					continue;
 				}
 
-				vector_type dv =
-					v1.new_position -
-					v0.new_position;
-				real_type dvlensq =
-					vector_traits::length_sq( dv );
+				vector_type dv = p0.new_position - p1.new_position;
+				real_type dvlensq = vector_traits::length_sq( dv );
 				if( dvlensq < math< Traits >::epsilon() ) {
 					continue;
 				}
-				real_type mu = real_type( 1.0 ) / dvlensq;
 
-				v1.penetration_denominator += mu;
-				v1.penetration_depth_numerator += 
-					mu *
-					( math< Traits >::dot(
-						dv, v0.penetration_vector ) +
-					  ( v0.penetration_depth_numerator /
-						v0.penetration_denominator ) );
-				v1.penetration_direction_numerator +=
-					v0.penetration_vector * mu;
-				v1.propagating = true;
+				if( !p1.propagating ) {
+					// 初期化
+					p1.penetration_denominator = 0;
+					p1.penetration_depth_numerator = 0;
+					p1.penetration_direction_numerator = v0;
+					//dprintf_real( "new propagation\n" );
+				}
+
+				real_type mu = real_type( 1.0 ) / dvlensq;
+				real_type dpj =
+					p0.penetration_depth_numerator /
+					p0.penetration_denominator;
+				vector_type rpj =
+					math< Traits >::normalize( p0.penetration_vector );
+				//p0.penetration_vector;
+
+				p1.penetration_denominator += mu;
+				p1.penetration_depth_numerator += 
+					mu * ( math< Traits >::dot( dv, rpj ) + dpj );
+				p1.penetration_direction_numerator += rpj * mu;
+				p1.propagating = true;
 			}
 
 			processed_count = 0;
@@ -1258,20 +1219,16 @@ private:
 				point_type& v = *i;
 				if( !v.propagating ) { continue; }
 
+				real_type dirlen =
+					math< Traits >::length(
+						v.penetration_direction_numerator );
 				v.process_flag = true;
 				v.propagating = false;
 				v.penetration_vector =
 					v.penetration_direction_numerator *
-					( real_type(1) / v.penetration_denominator ); 
-								
-#if 0
-				if( isnan( v.penetration_vector.x ) ||
-					isnan( v.penetration_vector.y ) ||
-					isnan( v.penetration_vector.z ) ) {
-					DebugBreak();
-				}
-#endif
-								
+					v.penetration_depth_numerator *
+					( real_type(1) / ( v.penetration_denominator * dirlen ) ); 
+
 				processed_count++;
 			}
 						

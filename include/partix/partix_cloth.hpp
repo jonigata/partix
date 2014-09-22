@@ -84,14 +84,10 @@ public:
     void teleport( const vector_type& v ) { teleport_internal( v ); }
 
     void begin_frame() { begin_frame_internal(); }
-    void update_velocity( real_type dt, real_type idt )
-    {
-        update_velocity_internal( dt, idt );
-    }
-    void apply_forces( real_type dt, real_type idt )
-    {
-        apply_forces_internal( dt, idt );
-    }
+	void compute_motion( real_type pdt, real_type dt, real_type idt )
+	{
+		compute_motion_internal( pdt, dt, idt );
+	}
     void match_shape() {}
     void restore_shape( real_type dt, real_type idt, int kmax )
     {
@@ -246,41 +242,10 @@ private:
         }
     }
 
-    void update_velocity_internal( real_type dt, real_type idt )
+    void compute_motion_internal( real_type pdt, real_type dt, real_type idt )
     {
         if( touch_level_ == 0 ) {
             if( !this->get_alive() ) { return; }
-            if( this->get_frozen() && !this->get_defrosting() ) { return; }
-        }
-        cloud_->update_velocity( dt, idt );
-
-#if 0
-        // spring
-        points_type& points = cloud_->get_points();
-        for( springs_type::const_iterator i = springs_.begin() ;
-             i != springs_.end() ;
-             ++i ) {
-            point_type& p0 = points[(*i).indices.i0];
-            point_type& p1 = points[(*i).indices.i1];
-
-            vector_type tension_direction = p1.new_position - p0.new_position;
-            real_type length = Traits::vector_length( tension_direction );
-            real_type extention = length - (*i).natural_length;
-
-            real_type tension = (*i).tension * extention / (*i).natural_length;
-
-            math< Traits >::normalize_f( tension_direction );
-
-            p0.forces += tension_direction * tension;
-            p1.forces += tension_direction * -tension;
-        }                
-#endif
-    }
-
-    void apply_forces_internal( real_type dt, real_type idt )
-    {
-        if( touch_level_ == 0 ) {
-            if( !this->get_alive() ) { return ; }
             if( this->get_frozen() && !this->get_defrosting() ) { return; }
         }
 
@@ -288,7 +253,8 @@ private:
             real_type( 1.0 ) -
             pow(  real_type( 1.0 ) - this->get_drag_factor(), dt );
 
-        cloud_->apply_forces(
+        cloud_->compute_motion(
+			pdt,
             dt,
             idt,
             math< Traits >::vector_zero(),

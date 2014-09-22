@@ -28,7 +28,7 @@ public:
 	};
 
 public:
-	aabb_tree() : pool_( page_provider_ ) { root_ = NULL; }
+	aabb_tree() : pool_( page_provider_, "aabbt" ) { root_ = NULL; }
 	~aabb_tree() { /* destroy_node( root_ ); */ }
 
 	void clear()
