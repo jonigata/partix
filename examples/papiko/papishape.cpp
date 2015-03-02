@@ -844,7 +844,7 @@ private:
         for( std::set< TmpEdge >::iterator i = tmpedges.begin() ;
              i != tmpedges.end() ;
              ++i ) {
-            TmpEdge& te = (*i);
+            TmpEdge& te = const_cast<TmpEdge&>(*i); // Žè”²‚«
 
             if( te.adjacent_face_count == 1 ) {
                 Face f;
@@ -909,7 +909,7 @@ private:
             e.adjacent_face_count = 1;
             edges.insert( e );
         } else {
-            TmpEdge& e2 = (*i);
+            TmpEdge& e2 = const_cast<TmpEdge&>(*i); // Žè”²‚«
             if( e2.adjacent_face_count == 1 ) {
                 e2.adjacent_faces[1].face_point = face_point;
                 e2.adjacent_faces[1].clockwise = clockwise;

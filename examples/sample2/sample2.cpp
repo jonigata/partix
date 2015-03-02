@@ -13,7 +13,7 @@
 #include "room.hpp"
 #include "texture_cache.hpp"
 #include "mouse_dispatcher.hpp"
-#include "draw_physie.hpp"
+//#include "draw_physie.hpp"
 
 /*===========================================================================*/
 /*!
@@ -768,7 +768,7 @@ private:
 
             shape_->render( device );
 			if( show_wire_ ) {
-				draw_physie( device, volume );
+				//draw_physie( device, volume );
 			}
         }
     }
