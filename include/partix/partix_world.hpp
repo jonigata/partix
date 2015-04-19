@@ -736,7 +736,7 @@ private:
 
         size_t n = D.size(); 
         for( size_t i = 0 ; i < n ; i++ ) {
-            softvolume_type* volume = dynamic_cast< softvolume_type* >( D[i] );
+            softvolume_type* volume = cast_to_softvolume(D[i]);
             if( volume ) {
                 if( volume->get_positive() ) {
                     have_attacker = true;
@@ -748,7 +748,7 @@ private:
                              neighbors.begin() ;
                          j != neighbors.end() ;
                          ++j ) {
-                        if( dynamic_cast< cloth_type* >(*j) &&
+                        if( cast_to_cloth(*j) &&
                             (*j)->get_body()->get_positive() ) {
                             accept = true;
                         }
@@ -758,7 +758,7 @@ private:
                 volumes.push_back( volume );
                 edge_ave += volume->get_mesh()->get_average_edge_length();
             }
-            cloth_type* cloth = dynamic_cast< cloth_type* >( D[i] );
+            cloth_type* cloth = cast_to_cloth( D[i] );
             if( cloth ) {
                 if( cloth->get_positive() ) {
                     have_attacker = true;
@@ -770,7 +770,7 @@ private:
                              neighbors.begin() ;
                          j != neighbors.end() ;
                          ++j ) {
-                        if( dynamic_cast< softvolume_type* >(*j) &&
+                        if( cast_to_softvolume(*j) &&
                             (*j)->get_body()->get_positive() ) {
                             accept = true;
                         }
@@ -989,8 +989,7 @@ private:
         int n = int( D2.size() ); 
         real_type edge_ave = 0;
         for( int i = 0 ; i < n ; i++ ) {
-            softvolume_type* volume =
-                dynamic_cast< softvolume_type* >( D2[i] );
+            softvolume_type* volume = cast_to_softvolume( D2[i] );
             if( !volume ) { continue; }
             
             if( volume->get_positive() ) {
@@ -1003,7 +1002,7 @@ private:
                          neighbors.begin() ;
                      j != neighbors.end() ;
                      ++j ) {
-                    if( dynamic_cast< softvolume_type* >(*j) &&
+                    if( cast_to_softvolume(*j) &&
                         (*j)->get_body()->get_positive() ) {
                         accept = true;
                     }
@@ -1848,8 +1847,7 @@ private:
         body_type* a_body = a_collidable->get_body();
         body_type* b_body = b_collidable->get_body();
 
-		assert( !( dynamic_cast< Volume< Traits >* >( a_body ) &&
-				   dynamic_cast< Volume< Traits >* >( b_body ) ) );
+        assert(!(a_body->as_volume()&& b_body->as_volume()));
 
         if( !a_body->get_positive() && !b_body->get_positive() ) { 
             // 両方非攻撃性オブジェクトなら何もしない
@@ -2008,6 +2006,22 @@ private:
         c.plane_normal    = plane_normal;
         c.plane_position  = plane_position;
         constraints_.push_back( c );
+    }
+
+    softvolume_type* cast_to_softvolume(collidable_type* p) {
+        body_type* body = p->get_body();
+        if (body->classid() == BODY_ID_SOFTVOLUME) {
+            return static_cast<softvolume_type*>(body);
+        }
+        return nullptr;
+    }
+        
+    cloth_type* cast_to_cloth(collidable_type* p) {
+        body_type* body = p->get_body();
+        if (body->classid() == BODY_ID_CLOTH) {
+            return static_cast<cloth_type*>(body);
+        }
+        return nullptr;
     }
         
     template < class T >

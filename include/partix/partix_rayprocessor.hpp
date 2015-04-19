@@ -90,8 +90,7 @@ public:
              i != B2.end() ;
              ++i ) {
             collidable_type * collidable = *i;
-            if( !dynamic_cast< Volume< Traits >* >(
-                    collidable->get_body() ) ) {
+            if (!collidable->get_body()->as_volume()) {
                 B.push_back( collidable );
                 continue;
             }
@@ -104,7 +103,7 @@ public:
             for( collidables_iterator i = neighbors.begin() ;
                  i != neighbors.end() ;
                  ++i ) {
-                if( !dynamic_cast< Volume< Traits >* >( (*i)->get_body() ) ) {
+                if (!(*i)->get_body()->as_volume()) {
                     f = true;
                     break;
                 }
@@ -212,7 +211,7 @@ public:
         for( typename collidable_set::const_iterator i = R.begin() ;
              i != R.end() ;
              ++i ) {
-            if( !dynamic_cast< Volume< Traits >* >( (*i)->get_body() ) ) {
+            if (!(*i)->get_body()->as_volume()) {
                 remove_volume = false;
                 break;
             }
@@ -223,8 +222,7 @@ public:
         for( typename collidable_set::const_iterator i = T.begin() ;
              i != T.end() ;
              ++i ) {
-            if( remove_volume &&
-                dynamic_cast< Volume< Traits >* >( (*i)->get_body() ) ) {
+            if (remove_volume && (*i)->get_body()->as_volume()) {
                 continue;
             }
 

@@ -14,22 +14,23 @@
 namespace partix {
 
 template < class Traits >
-class Volume : public Body< Traits >, public Collidable< Traits > {
+class Volume : public Body<Traits>, public Collidable<Traits> {
 public:
-	typedef TetrahedralMesh< Traits > mesh_type;
+    typedef TetrahedralMesh<Traits> mesh_type;
 
-	Volume() { mesh_ = NULL; }
+    Volume() { mesh_ = NULL; }
 
-	void			clear() { mesh_ = NULL; }
-	void			set_mesh( mesh_type* p )
-	{
-		mesh_ = p;
-		mesh_->set_volume( this );
-	}
-	mesh_type*		get_mesh() { return mesh_; }
+    Volume<Traits>* as_volume() { return this; }
+
+    void   clear() { mesh_ = NULL; }
+    void   set_mesh(mesh_type* p) {
+        mesh_ = p;
+        mesh_->set_volume(this);
+    }
+    mesh_type*  get_mesh() { return mesh_; }
 
 protected:
-	mesh_type*		mesh_;
+    mesh_type*  mesh_;
 
 };
 
