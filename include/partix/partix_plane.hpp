@@ -11,15 +11,6 @@
 namespace partix {
 
 template < class Traits >
-class BoundingPlaneSnapShot : public BodySnapShot< Traits > {
-public:
-    BodySnapShot< Traits >* clone()
-    {
-        return new BoundingPlaneSnapShot< Traits >;
-    }
-};
-
-template < class Traits >
 class BoundingPlane : public Body< Traits >, public Collidable< Traits > {
 public:
     typedef typename Traits::vector_traits  vector_traits;
@@ -44,12 +35,6 @@ public:
     // implements Body
     int classid() { return BODY_ID_PLANE; }
         
-    BodySnapShot< Traits >* make_snapshot()
-    {
-        return new BoundingPlaneSnapShot< Traits >;
-    }
-    void apply_snapshot( const BodySnapShot< Traits >* ) { }
-
     void            regularize() {}
     matrix_type     get_world_matrix() { return matrix_type(); }
     void            list_collision_units( collidables_type& s )

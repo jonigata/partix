@@ -14,14 +14,6 @@
 namespace partix {
 
 template < class Traits >
-class BodySnapShot {
-public:
-	virtual ~BodySnapShot(){}
-
-	virtual BodySnapShot< Traits >* clone() = 0;
-};
-
-template < class Traits >
 class Body {
 public:
 	typedef typename Traits::vector_traits	vector_traits;
@@ -48,9 +40,6 @@ public:
 	virtual ~Body(){}
 
 	virtual int						classid() = 0;
-
-	virtual BodySnapShot< Traits >* make_snapshot() = 0;
-	virtual void apply_snapshot( const BodySnapShot< Traits >* ) = 0;
 
 	virtual void regularize() = 0;
 	virtual void list_collision_units(

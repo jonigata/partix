@@ -30,48 +30,6 @@ const int SPATIAL_HASH_TABLE_SIZE = 9997;
 const float SPATIAL_HASH_GRID_SIZE = 0.5f;
 
 template < class Traits >
-class Snapshot {
-public:
-    typedef std::vector< BodySnapShot< Traits >* > bodies_type;
-
-public:
-    Snapshot() {}
-    Snapshot( const Snapshot& ss ) { operator=( ss ); }
-    ~Snapshot() { clear(); }
-
-    Snapshot& operator=( const Snapshot& ss )
-    {
-        clear();
-        for( typename bodies_type::const_iterator i =
-                 ss.bodies_.begin() ;
-             i != ss.bodies_.end() ;
-             ++i ) {
-            bodies_.push_back( (*i)->clone() );
-        }
-        return *this;
-    }
-        
-    void clear()
-    {
-        for( typename bodies_type::const_iterator i =
-                 bodies_.begin() ;
-             i != bodies_.end() ;
-             ++i ) {
-            delete *i;
-        }
-        bodies_.clear();
-    }
-
-    void add( BodySnapShot< Traits >* b ) { bodies_.push_back( b ); }
-
-private:
-    bodies_type bodies_;
-
-    template < class T > friend class World;
-};
-
-
-template < class Traits >
 class World {
 public:
     typedef typename Traits::vector_traits          vector_traits;
@@ -156,14 +114,6 @@ public:
         remove_body_internal( p );
     }
 
-    void save_snapshot( Snapshot< Traits >& snapshot )
-    {
-        save_snapshot_internal( snapshot );
-    }
-    void load_snapshot( const Snapshot< Traits >& snapshot )
-    {
-        load_snapshot_internal( snapshot );
-    }
     void restart()
     {
         restart_internal();
@@ -234,31 +184,6 @@ private:
                 bodies_.end(),
                 p ) );
     }                
-
-    void save_snapshot_internal( Snapshot< Traits >& snapshot )
-    {
-        // Š—LŒ ‚ÍSnapShot‚ÉˆÚ“®‚·‚é
-
-        snapshot.clear();
-        for( typename bodies_type::const_iterator i = bodies_.begin() ;
-             i != bodies_.end() ;
-             ++i ) {
-            snapshot.add( (*i)->make_snapshot() );
-        }
-    }
-
-    void load_snapshot_internal( const Snapshot< Traits >& snapshot )
-    {
-        int ii = 0;
-        for( typename bodies_type::const_iterator i = bodies_.begin() ;
-             i != bodies_.end() ;
-             ++i ) {
-            const BodySnapShot< Traits >* es =
-                snapshot.bodies_[ii++];
-                        
-            (*i)->apply_snapshot( es );
-        }
-    }
 
     void restart_internal()
     { 

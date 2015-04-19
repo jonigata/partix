@@ -15,36 +15,6 @@
 namespace partix {
 
 template < class Traits >
-class RigidSnapShot : public BodySnapShot< Traits > {
-public:
-	typedef typename Traits::float_type		float_type;
-	typedef typename Traits::vector_type	vector_type;
-	typedef typename Traits::matrix_type	matrix_type;
-
-	BodySnapShot< Traits >* clone()
-	{
-		return new RigidSnapShot< Traits >( *this );
-	}
-
-	vector_type		global_force;
-	matrix_type		transform;
-	vector_type		bbmin;
-	vector_type		bbmax;
-
-	float_type		mass;
-	float_type		mass_inv;
-	vector_type		position;
-	float_type		inertia_tensor[9];
-	float_type		inertia_tensor_inv[9];
-	float_type		orientation[9];
-	quaternion< float_type > quaternion;
-	vector_type		linear_momentum;
-	vector_type		angular_momentum;
-	vector_type		linear_velocity;
-	vector_type		angular_velocity;
-};
-
-template < class Traits >
 class Rigid : public Mesh< Traits > {
 public:
 	typedef typename Traits::index_type		index_type;
@@ -55,9 +25,6 @@ public:
 	~Rigid(){ clear(); }
 
 	int classid() { return 2; }
-
-	RigidSnapShot< Traits >* make_snapshot() {return make_snapshot_internal(); }
-	void apply_snapshot( const BodySnapShot< Traits >* ss ) { apply_snapshot_internal( ss ); }
 
 	void clear()
 	{
@@ -141,55 +108,6 @@ private:
 	void operator=( const Rigid& ){}
 
 private:
-	RigidSnapShot< Traits >* make_snapshot_internal()
-	{
-		// èäóLå†ÇÕSnapShotÇ…à⁄ìÆÇ∑ÇÈ
-
-		RigidSnapShot< Traits >* es = new RigidSnapShot< Traits >;
-
-		es->global_force = get_global_force();
-		es->transform = transform_;
-		es->bbmin = bbmin_;
-		es->bbmax = bbmax_;
-
-		es->mass		= mass_;
-		es->mass_inv	= mass_inv_;
-		es->position	= position_;
-		memcpy( es->inertia_tensor, inertia_tensor_, sizeof( float_type ) * 9 );
-		memcpy( es->inertia_tensor_inv, inertia_tensor_inv_, sizeof( float_type ) * 9 );
-		memcpy( es->orientation, orientation_, sizeof( float_type ) * 9 );
-		es->quaternion			= quaternion_;
-		es->linear_momentum		= linear_momentum_;
-		es->angular_momentum	= angular_momentum_;
-		es->linear_velocity		= linear_velocity_;
-		es->angular_velocity	= angular_velocity_;
-
-		return es;
-	}
-
-	void apply_snapshot_internal( const BodySnapShot< Traits >* ss )
-	{
-		const RigidSnapShot< Traits >* es = dynamic_cast< const RigidSnapShot< Traits >* >( ss );
-		assert( es );
-
-		set_global_force( es->global_force );
-		transform_		= es->transform;
-		bbmin_			= es->bbmin;
-		bbmax_			= es->bbmax;
-
-		mass_					= es->mass;
-		mass_inv_				= es->mass_inv;
-		position_				= es->position;
-		memcpy( inertia_tensor_, es->inertia_tensor, sizeof( float_type ) * 9 );
-		memcpy( inertia_tensor_inv_, es->inertia_tensor_inv, sizeof( float_type ) * 9 );
-		memcpy( orientation_, es->orientation, sizeof( float_type ) * 9 );
-		quaternion_				= es->quaternion;
-		linear_momentum_		= es->linear_momentum;
-		angular_momentum_		= es->angular_momentum;
-		linear_velocity_		= es->linear_velocity;
-		angular_velocity_		= es->angular_velocity;
-	}
-
 	void start()
 	{
 		vector_type v0 = math< Traits >::vector_zero();

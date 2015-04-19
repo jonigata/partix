@@ -15,23 +15,6 @@
 
 namespace partix {
 
-// soft shell
-template < class Traits >
-class SoftShellSnapShot : public BodySnapShot< Traits > {
-public:
-	typedef typename Traits::vector_type	vector_type;
-	typedef typename Traits::matrix_type	matrix_type;
-
-	BodySnapShot< Traits >* clone()
-	{
-		return new SoftShellSnapShot< Traits >( *this );
-	}
-
-	std::vector< Cloud< Traits > >	clouds;
-	vector_type						initial_center;
-	vector_type						global_force;
-};
-
 template < class Traits >
 class SoftShell : public Shell< Traits > {
 public:
@@ -64,15 +47,6 @@ public:
 
 	// implements Body
 	int classid() { return BODY_ID_SOFTSHELL; }
-
-	SoftShellSnapShot< Traits >* make_snapshot()
-	{
-		return make_snapshot_internal();
-	}
-	void apply_snapshot( const BodySnapShot< Traits >* ss )
-	{
-		apply_snapshot_internal( ss );
-	}
 
 	void regularize() { regularize_internal(); }
 	void list_collision_units( collidables_type& s )
@@ -134,41 +108,6 @@ private:
 	void operator=( const SoftShell& ){}
 
 private:
-	SoftShellSnapShot< Traits >* make_snapshot_internal()
-	{
-		// èäóLå†ÇÕSnapShotÇ…à⁄ìÆÇ∑ÇÈ
-		SoftShellSnapShot< Traits >* ds =
-			new SoftShellSnapShot< Traits >;
-
-		for( typename clouds_type::iterator j =
-				 this->clouds_.begin() ;
-			 j != this->clouds_.end() ;
-			 ++j ) {
-			ds->clouds.push_back( **j );
-		}
-		ds->initial_center = initial_center_;
-		ds->global_force   = this->get_global_force();
-
-		return ds;
-	}
-
-	void apply_snapshot_internal( const BodySnapShot< Traits >* ss )
-	{
-		const SoftShellSnapShot< Traits >* ds =
-			dynamic_cast< const SoftShellSnapShot< Traits >* >( ss );
-		assert( ds );
-
-		int jj = 0;
-		for( typename clouds_type::iterator j =
-				 this->clouds_.begin() ;
-			 j != this->clouds_.end() ;
-			 ++j ) {
-			**j = ds->clouds[jj++];
-		}
-		initial_center_ = ds->initial_center;
-		set_global_force( ds->global_force );
-	}
-
 	void list_collision_units_internal( collidables_type& s )
 	{
 		for( typename blocks_type::const_iterator i =

@@ -18,22 +18,6 @@ namespace partix {
 
 // soft volume
 template < class Traits >
-class SoftVolumeSnapShot : public BodySnapShot< Traits > {
-public:
-	typedef typename Traits::vector_type	vector_type;
-	typedef typename Traits::matrix_type	matrix_type;
-
-	BodySnapShot< Traits >* clone()
-	{
-		return new SoftVolumeSnapShot< Traits >( *this );
-	}
-
-	Cloud< Traits > cloud;
-	vector_type		initial_center;
-	vector_type		global_force;
-};
-
-template < class Traits >
 class SoftVolume : public Volume< Traits > {
 public:
 	typedef typename Traits::vector_traits	vector_traits;
@@ -75,15 +59,6 @@ public:
 
 	// implements Body
 	int classid() { return BODY_ID_SOFTVOLUME; }
-
-	SoftVolumeSnapShot< Traits >* make_snapshot()
-	{
-		return make_snapshot_internal();
-	}
-	void apply_snapshot( const BodySnapShot< Traits >* ss )
-	{
-		apply_snapshot_internal( ss );
-	}
 
 	void regularize()
 	{
@@ -274,25 +249,6 @@ private:
 	}
 
 private:
-	SoftVolumeSnapShot< Traits >* make_snapshot_internal()
-	{
-		// èäóLå†ÇÕSnapShotÇ…à⁄ìÆÇ∑ÇÈ
-
-		// TODO: ñ¢é¿ëï
-		SoftVolumeSnapShot< Traits >* ds =
-			new SoftVolumeSnapShot< Traits >;
-		return ds;
-	}
-
-	void apply_snapshot_internal( const BodySnapShot< Traits >* ss )
-	{
-		// TODO: ñ¢é¿ëï
-		const SoftShellSnapShot< Traits >* ds =
-			dynamic_cast< const SoftShellSnapShot< Traits >* >(
-				ss );
-		assert( ds );
-	}
-
 	void list_collision_units_internal( collidables_type& s )
 	{
 		s.push_back( this );
