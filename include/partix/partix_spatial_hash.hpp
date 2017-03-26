@@ -22,6 +22,8 @@ public:
 	typedef typename Traits::real_type      real_type;
 	typedef typename Traits::vector_type    vector_type;
 
+        typedef typename Traits::vector_traits vt;
+
 public:
 	int coord( real_type c )
 	{
@@ -40,7 +42,10 @@ public:
 
 	size_t hash( const vector_type& q )
 	{
-		return hash_value( coord( q.x ), coord( q.y ), coord( q.z ) );
+            return hash_value(
+                coord(vt::x(q)), 
+                coord(vt::y(q)), 
+                coord(vt::z(q)));
 	}
 
 	real_type gridsize() { return gridsize_; }
@@ -64,6 +69,8 @@ class DirectSpatialHash : public SpatialHashBase< Traits > {
 public:
 	typedef typename Traits::real_type      real_type;
 	typedef typename Traits::vector_type    vector_type;
+
+        typedef typename Traits::vector_traits vt;
 
 	struct InternalNode {
 		InternalNode*   next;
@@ -263,6 +270,9 @@ class SegmentTriangleSpatialHash {
 private:
 	typedef typename Traits::real_type      real_type;
 	typedef typename Traits::vector_type    vector_type;
+	typedef typename Traits::vector_traits	vector_traits;
+
+        typedef typename Traits::vector_traits vt;
 
 	struct SegmentHashNode {
 		vector_type     s0;
@@ -286,7 +296,7 @@ private:
 		{
 			vector_type uvt;
 			if( !collide( p, q, uvt ) ) { return false; }
-			if( uvt.z < dist_ ) { dist_ = uvt.z; }
+			if( vt::z(uvt) < dist_ ) { dist_ = vt::z(uvt); }
 			return false;
 		}
 
@@ -338,7 +348,7 @@ public:
 		t->s1 = s1;
 		math< Traits >::get_segment_bb( s0, s1, t->bbmin, t->bbmax );
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			s0, s1, active_table_.gridsize() );
 		int x, y, z;
 		while( vt( x, y, z ) ) {
@@ -357,12 +367,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vector_traits::x(bbmin) );
+		int x1 = passive_table_.coord( vector_traits::x(bbmax) );
+		int y0 = passive_table_.coord( vector_traits::y(bbmin) );
+		int y1 = passive_table_.coord( vector_traits::y(bbmax) );
+		int z0 = passive_table_.coord( vector_traits::z(bbmin) );
+		int z1 = passive_table_.coord( vector_traits::z(bbmax) );
 
 		vector_type n = math< Traits >::normalize(
 			math< Traits >::cross( v1 - v0, v2 - v0 ) );
@@ -384,9 +394,9 @@ public:
 
 					// ƒZƒ‹‚Ì’†‰›
 					vector_type c;
-					c.x = ( x + real_type( 0.5 ) ) * gridsize;
-					c.y = ( y + real_type( 0.5 ) ) * gridsize;
-					c.z = ( z + real_type( 0.5 ) ) * gridsize;
+                                        vector_traits::x(c, ( x + real_type( 0.5 ) ) * gridsize);
+                                        vector_traits::y(c, ( y + real_type( 0.5 ) ) * gridsize);
+                                        vector_traits::z(c, ( z + real_type( 0.5 ) ) * gridsize);
 
 					// plane - sphere(ƒZƒ‹•‚Ì‘ÎŠpü‚ğ’¼Œa‚Æ‚·‚é)‚ÅƒJƒŠƒ“ƒO
 					real_type dist = math< Traits >::dot( c, n ) - d;
@@ -595,6 +605,8 @@ private:
 	typedef typename Traits::real_type      real_type;
 	typedef typename Traits::vector_type    vector_type;
 
+        typedef typename Traits::vector_traits vt;
+
 	struct RayHashNode {
 		vector_type     s0;
 		vector_type     s1;
@@ -676,7 +688,7 @@ public:
 		t->load = load;
 		math< Traits >::get_segment_bb( s0, s1, t->bbmin, t->bbmax );
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			s0, s1, active_table_.gridsize() );
 		int x, y, z;
 		while( vt( x, y, z ) ) {
@@ -697,12 +709,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vt::x(bbmin) );
+		int x1 = passive_table_.coord( vt::x(bbmax) );
+		int y0 = passive_table_.coord( vt::y(bbmin) );
+		int y1 = passive_table_.coord( vt::y(bbmax) );
+		int z0 = passive_table_.coord( vt::z(bbmin) );
+		int z1 = passive_table_.coord( vt::z(bbmax) );
 
 #if 0
 		vector_type n = math< Traits >::normalize(
@@ -926,6 +938,8 @@ private:
 	typedef typename mesh_type::tetrahedra_type             tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type     points_type;
 
+        typedef typename Traits::vector_traits vt;
+
 	struct PointHashNode {
 		mesh_type*      mesh;
 		index_type      index;
@@ -969,10 +983,10 @@ private:
 			vector_type vd;
 			math< Traits >::transform_vector( vd, q->invA, vs );
 			return
-				0 <= vd.x &&
-				0 <= vd.y &&
-				0 <= vd.z &&
-				( vd.x + vd.y + vd.z ) <= 1;
+				0 <= vt::x(vd) &&
+				0 <= vt::y(vd) &&
+				0 <= vt::z(vd) &&
+				( vt::x(vd) + vt::y(vd) + vt::z(vd) ) <= 1;
 		}
         
 		const T& c_;
@@ -1036,12 +1050,12 @@ public:
 
 			TetrahedronHashNode* t = NULL;
                         
-			int x0 = passive_table_.coord( bbmin.x );
-			int x1 = passive_table_.coord( bbmax.x );
-			int y0 = passive_table_.coord( bbmin.y );
-			int y1 = passive_table_.coord( bbmax.y );
-			int z0 = passive_table_.coord( bbmin.z );
-			int z1 = passive_table_.coord( bbmax.z );
+			int x0 = passive_table_.coord( vt::x(bbmin) );
+			int x1 = passive_table_.coord( vt::x(bbmax) );
+			int y0 = passive_table_.coord( vt::y(bbmin) );
+			int y1 = passive_table_.coord( vt::y(bbmax) );
+			int z0 = passive_table_.coord( vt::z(bbmin) );
+			int z1 = passive_table_.coord( vt::z(bbmax) );
 
 			for( int z = z0 ; z <= z1 ; z++ ) {
 				for( int y = y0 ; y <= y1 ; y++ ) {
@@ -1062,15 +1076,15 @@ public:
 							t->v0 = v0;
 
 							real_type A[9];
-							A[0] = v1.x - v0.x;
-							A[1] = v2.x - v0.x;
-							A[2] = v3.x - v0.x;
-							A[3] = v1.y - v0.y;
-							A[4] = v2.y - v0.y;
-							A[5] = v3.y - v0.y;
-							A[6] = v1.z - v0.z;
-							A[7] = v2.z - v0.z;
-							A[8] = v3.z - v0.z;
+							A[0] = vt::x(v1) - vt::x(v0);
+							A[1] = vt::x(v2) - vt::x(v0);
+							A[2] = vt::x(v3) - vt::x(v0);
+							A[3] = vt::y(v1) - vt::y(v0);
+							A[4] = vt::y(v2) - vt::y(v0);
+							A[5] = vt::y(v3) - vt::y(v0);
+							A[6] = vt::z(v1) - vt::z(v0);
+							A[7] = vt::z(v2) - vt::z(v0);
+							A[8] = vt::z(v3) - vt::z(v0);
 
 							math< Traits >::inverse_matrix( t->invA, A );
 						}
@@ -1110,6 +1124,8 @@ private:
 	typedef typename mesh_type::tetrahedron_type		tetrahedron_type;
 	typedef typename mesh_type::tetrahedra_type         tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type points_type;
+
+        typedef typename Traits::vector_traits vt;
 
 	struct EdgeHashNode {
 		mesh_type*      mesh;
@@ -1205,7 +1221,7 @@ public:
 		math< Traits >::get_segment_bb(
 			v0.new_position, v1.new_position, t->bbmin, t->bbmax );
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			v0.new_position, v1.new_position, active_table_.gridsize() );
 
 		int x, y, z;
@@ -1227,12 +1243,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vt::x(bbmin) );
+		int x1 = passive_table_.coord( vt::x(bbmax) );
+		int y0 = passive_table_.coord( vt::y(bbmin) );
+		int y1 = passive_table_.coord( vt::y(bbmax) );
+		int z0 = passive_table_.coord( vt::z(bbmin) );
+		int z1 = passive_table_.coord( vt::z(bbmax) );
 
 		vector_type n = math< Traits >::normalize(
 			math< Traits >::cross( v1 - v0, v2 - v0 ) );
@@ -1254,9 +1270,9 @@ public:
 
 					// ƒZƒ‹‚Ì’†‰›
 					vector_type c;
-					c.x = ( x + real_type( 0.5 ) ) * gridsize;
-					c.y = ( y + real_type( 0.5 ) ) * gridsize;
-					c.z = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
+					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
+					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
 
 					// plane - sphere(ƒZƒ‹•‚Ì‘ÎŠpü‚ğ’¼Œa‚Æ‚·‚é)‚ÅƒJƒŠƒ“ƒO
 					real_type dist = math< Traits >::dot( c, n ) - d;
@@ -1306,6 +1322,8 @@ private:
 	typedef typename mesh_type::tetrahedra_type             tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type     points_type;
 
+        typedef typename Traits::vector_traits vt;
+
 	struct PenetrationHashNode {
 		mesh_type*      mesh;
 		index_type      index;
@@ -1327,7 +1345,7 @@ private:
 			vector_type uvt;
 			if( !collide( p, q, uvt ) ) { return false; }
 
-			std::swap( uvt.x, uvt.y ); // — •\”½“]‚µ‚Ä‚ ‚é‚©‚ç
+			std::swap( vt::x(uvt), vt::y(uvt) ); // — •\”½“]‚µ‚Ä‚ ‚é‚©‚ç
 			c_( p->mesh, p->index, q->mesh, q->index, uvt );
 			return true;
 		}
@@ -1398,7 +1416,7 @@ public:
 		vector_type v1 = v0 + v.penetration_vector;
 #endif
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			v0, v1, active_table_.gridsize() );
 
 		int x, y, z;
@@ -1419,12 +1437,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vt::x(bbmin) );
+		int x1 = passive_table_.coord( vt::x(bbmax) );
+		int y0 = passive_table_.coord( vt::y(bbmin) );
+		int y1 = passive_table_.coord( vt::y(bbmax) );
+		int z0 = passive_table_.coord( vt::z(bbmin) );
+		int z1 = passive_table_.coord( vt::z(bbmax) );
 
 		FaceHashNode* t = NULL;
 
@@ -1487,6 +1505,8 @@ private:
 	typedef typename mesh_type::tetrahedra_type             tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type     points_type;
 
+        typedef typename Traits::vector_traits vt;
+
 	struct PointHashNode {
 		cloth_type*     cloth;
 		index_type      index;
@@ -1530,10 +1550,10 @@ private:
 			vector_type v = p->position - q->v0;
 			math< Traits >::transform_vector( bcc, q->invA, v );
 			return
-				0 <= bcc.x &&
-				0 <= bcc.y &&
-				0 <= bcc.z &&
-				( bcc.x + bcc.y + bcc.z ) <= 1;
+				0 <= vt::x(bcc) &&
+				0 <= vt::y(bcc) &&
+				0 <= vt::z(bcc) &&
+				( vt::x(bcc) + vt::y(bcc) + vt::z(bcc) ) <= 1;
 		}
         
 		const T& c_;
@@ -1606,12 +1626,12 @@ public:
 
 			TetrahedronHashNode* t = NULL;
                         
-			int x0 = passive_table_.coord( bbmin.x );
-			int x1 = passive_table_.coord( bbmax.x );
-			int y0 = passive_table_.coord( bbmin.y );
-			int y1 = passive_table_.coord( bbmax.y );
-			int z0 = passive_table_.coord( bbmin.z );
-			int z1 = passive_table_.coord( bbmax.z );
+			int x0 = passive_table_.coord( vt::x(bbmin) );
+			int x1 = passive_table_.coord( vt::x(bbmax) );
+			int y0 = passive_table_.coord( vt::y(bbmin) );
+			int y1 = passive_table_.coord( vt::y(bbmax) );
+			int z0 = passive_table_.coord( vt::z(bbmin) );
+			int z1 = passive_table_.coord( vt::z(bbmax) );
 
 			for( int z = z0 ; z <= z1 ; z++ ) {
 				for( int y = y0 ; y <= y1 ; y++ ) {
@@ -1631,15 +1651,15 @@ public:
 							t->v0 = v0;
 
 							real_type A[9];
-							A[0] = v1.x - v0.x;
-							A[1] = v2.x - v0.x;
-							A[2] = v3.x - v0.x;
-							A[3] = v1.y - v0.y;
-							A[4] = v2.y - v0.y;
-							A[5] = v3.y - v0.y;
-							A[6] = v1.z - v0.z;
-							A[7] = v2.z - v0.z;
-							A[8] = v3.z - v0.z;
+							A[0] = vt::x(v1) - vt::x(v0);
+							A[1] = vt::x(v2) - vt::x(v0);
+							A[2] = vt::x(v3) - vt::x(v0);
+							A[3] = vt::y(v1) - vt::y(v0);
+							A[4] = vt::y(v2) - vt::y(v0);
+							A[5] = vt::y(v3) - vt::y(v0);
+							A[6] = vt::z(v1) - vt::z(v0);
+							A[7] = vt::z(v2) - vt::z(v0);
+							A[8] = vt::z(v3) - vt::z(v0);
 
 							math< Traits >::inverse_matrix( t->invA, A );
 						}
@@ -1680,6 +1700,8 @@ private:
 	typedef typename mesh_type::tetrahedron_type            tetrahedron_type;
 	typedef typename mesh_type::tetrahedra_type             tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type     points_type;
+
+        typedef typename Traits::vector_traits vt;
 
 	struct SpikeHashNode {
 		cloth_type*     cloth;
@@ -1773,7 +1795,7 @@ public:
 		t->v1 = q.new_position - q.normal * thickness;
 		math< Traits >::get_segment_bb( t->v0, t->v1, t->bbmin, t->bbmax );
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			t->v0, t->v1, active_table_.gridsize() );
 
 		int x, y, z;
@@ -1795,12 +1817,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vt::x(bbmin) );
+		int x1 = passive_table_.coord( vt::x(bbmax) );
+		int y0 = passive_table_.coord( vt::y(bbmin) );
+		int y1 = passive_table_.coord( vt::y(bbmax) );
+		int z0 = passive_table_.coord( vt::z(bbmin) );
+		int z1 = passive_table_.coord( vt::z(bbmax) );
 
 		vector_type n = math< Traits >::normalize(
 			math< Traits >::cross( v1 - v0, v2 - v0 ) );
@@ -1822,9 +1844,9 @@ public:
 
 					// ƒZƒ‹‚Ì’†‰›
 					vector_type c;
-					c.x = ( x + real_type( 0.5 ) ) * gridsize;
-					c.y = ( y + real_type( 0.5 ) ) * gridsize;
-					c.z = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
+					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
+					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
 
 					// plane - sphere(ƒZƒ‹•‚Ì‘ÎŠpü‚ğ’¼Œa‚Æ‚·‚é)‚ÅƒJƒŠƒ“ƒO
 					real_type dist = math< Traits >::dot( c, n ) - d;
@@ -1873,6 +1895,8 @@ private:
 	typedef typename mesh_type::tetrahedron_type            tetrahedron_type;
 	typedef typename mesh_type::tetrahedra_type             tetrahedra_type;
 	typedef typename mesh_type::cloud_type::points_type     points_type;
+
+        typedef typename Traits::vector_traits vt;
 
 	struct EdgeHashNode {
 		cloth_type*     cloth;
@@ -1964,7 +1988,7 @@ public:
 		t->v1 = points[i1].new_position;
 		math< Traits >::get_segment_bb( t->v0, t->v1, t->bbmin, t->bbmax );
 
-		voxel_traverser< real_type, vector_type > vt(
+		voxel_traverser< Traits > vt(
 			t->v0, t->v1, active_table_.gridsize() );
 
 		int x, y, z;
@@ -1986,12 +2010,12 @@ public:
 		vector_type bbmin, bbmax;
 		math< Traits >::get_triangle_bb( v0, v1, v2, bbmin, bbmax );
 
-		int x0 = passive_table_.coord( bbmin.x );
-		int x1 = passive_table_.coord( bbmax.x );
-		int y0 = passive_table_.coord( bbmin.y );
-		int y1 = passive_table_.coord( bbmax.y );
-		int z0 = passive_table_.coord( bbmin.z );
-		int z1 = passive_table_.coord( bbmax.z );
+		int x0 = passive_table_.coord( vt::x(bbmin) );
+		int x1 = passive_table_.coord( vt::x(bbmax) );
+		int y0 = passive_table_.coord( vt::y(bbmin) );
+		int y1 = passive_table_.coord( vt::y(bbmax) );
+		int z0 = passive_table_.coord( vt::z(bbmin) );
+		int z1 = passive_table_.coord( vt::z(bbmax) );
 
 		vector_type n = math< Traits >::normalize(
 			math< Traits >::cross( v1 - v0, v2 - v0 ) );
@@ -2013,9 +2037,9 @@ public:
 
 					// ƒZƒ‹‚Ì’†‰›
 					vector_type c;
-					c.x = ( x + real_type( 0.5 ) ) * gridsize;
-					c.y = ( y + real_type( 0.5 ) ) * gridsize;
-					c.z = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
+					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
+					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
 
 					// plane - sphere(ƒZƒ‹•‚Ì‘ÎŠpü‚ğ’¼Œa‚Æ‚·‚é)‚ÅƒJƒŠƒ“ƒO
 					real_type dist = math< Traits >::dot( c, n ) - d;

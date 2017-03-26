@@ -14,6 +14,10 @@
 #include "partix_spatial_hash.hpp"
 #include <string>
 
+#if !defined(PARTIX_ALIGN_OPERATOR)
+#define PARTIX_ALIGN_OPERATOR
+#endif
+
 namespace partix {
 
 // soft volume
@@ -39,6 +43,8 @@ public:
 	typedef typename mesh_type::indices_type indices_type;
 	typedef typename mesh_type::tetrahedron_type tetrahedron_type;
 	typedef typename mesh_type::tetrahedra_type tetrahedra_type;
+
+        typedef typename Traits::vector_traits vt;
 
 public:
 	SoftVolume()
@@ -215,36 +221,36 @@ private:
 	void dump()
 	{
 #ifdef _WINDOWS
-		char buffer[256];
-		sprintf( buffer, "model: %d\n", get_id() );
-		OutputDebugStringA( buffer );
+            char buffer[256];
+            sprintf( buffer, "model: %d\n", get_id() );
+            OutputDebugStringA( buffer );
 
-		points_type& points = get_mesh()->get_points();
+            points_type& points = get_mesh()->get_points();
 
-		for( typename points_type::const_iterator i = points.begin() ;
-			 i != points.end() ;
-			 ++i ) {
-			const point_type& v = *i;
-			char buffer[256];
-			sprintf( buffer,
-					 "point %f, %f, %f; %f, %f, %f; %f, %f, %f\n",
-					 v.forces.x,
-					 v.forces.y,
-					 v.forces.z,
-					 v.old_position.x,
-					 v.old_position.y,
-					 v.old_position.z,
-					 v.new_position.x,
-					 v.new_position.y,
-					 v.new_position.z );
-			OutputDebugStringA( buffer );
-		}
+            for( typename points_type::const_iterator i = points.begin() ;
+                 i != points.end() ;
+                 ++i ) {
+                const point_type& v = *i;
+                char buffer[256];
+                sprintf( buffer,
+                         "point %f, %f, %f; %f, %f, %f; %f, %f, %f\n",
+                         vector_traits::x(v.forces),
+                         vector_traits::y(v.forces),
+                         vector_traits::z(v.forces),
+                         vector_traits::x(v.old_position),
+                         vector_traits::y(v.old_position),
+                         vector_traits::z(v.old_position),
+                         vector_traits::x(v.new_position),
+                         vector_traits::y(v.new_position),
+                         vector_traits::z(v.new_position));
+                OutputDebugStringA( buffer );
+            }
 
-		sprintf( buffer, "entity force: %f, %f, %f\n",
-				 get_force().x,
-				 get_force().y,
-				 get_force().z );
-		OutputDebugStringA( buffer );
+            sprintf( buffer, "entity force: %f, %f, %f\n",
+                     vt::x(get_force()),
+                     vt::y(get_force()),
+                     vt::z(get_force()));
+            OutputDebugStringA( buffer );
 #endif
 	}
 
@@ -909,10 +915,10 @@ private:
 			const point_type& p = *i;
 			if( !p.surface ) { continue; }
 						
-			math< Traits >::mount(
-				total_center, e, p.source_position * p.mass );
-			math< Traits >::mount(
-				total_mass, mass_e, p.mass );
+                        vector_type mv = p.source_position * p.mass;
+
+			math< Traits >::mount(total_center, e, mv );
+			math< Traits >::mount(total_mass, mass_e, p.mass );
 		}
 
 		total_center *= real_type(1.0) / total_mass;
@@ -932,11 +938,11 @@ private:
 			 ++i ) {
 			const point_type& p = *i;
 			if( !p.surface ) { continue; }
+                        
+                        vector_type mv = p.new_position * p.mass;
 
-			math< Traits >::mount(
-				total_center, e, p.new_position * p.mass );
-			math< Traits >::mount(
-				total_mass, mass_e, p.mass );
+			math< Traits >::mount(total_center, e, mv);
+			math< Traits >::mount(total_mass, mass_e, p.mass );
 		}
 
 		total_center *= real_type(1.0) / total_mass;
@@ -1232,6 +1238,9 @@ private:
 	bool			debug_flag_;
 
 	template < class T > friend class World;
+
+public:
+    PARTIX_ALIGN_OPERATOR
 
 };
 

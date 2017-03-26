@@ -27,6 +27,8 @@ public:
     typedef std::vector< face_type >            faces_type;
     typedef std::vector< index_type >           indices_type;
 
+    typedef typename Traits::vector_traits vt;
+
 public:
     struct spring_type {
         Edge< Traits >  indices;
@@ -292,12 +294,12 @@ private:
                 
         cloud_->update_bb( bbmin_, bbmax_ );
 
-        bbmin_.x -= thickness_;
-        bbmin_.y -= thickness_;
-        bbmin_.z -= thickness_;
-        bbmax_.x += thickness_;
-        bbmax_.y += thickness_;
-        bbmax_.z += thickness_;
+        vt::x(bbmin_) -= thickness_;
+        vt::y(bbmin_) -= thickness_;
+        vt::z(bbmin_) -= thickness_;
+        vt::x(bbmax_) += thickness_;
+        vt::y(bbmax_) += thickness_;
+        vt::z(bbmax_) += thickness_;
     }
 
     void end_frame_internal()
@@ -390,9 +392,9 @@ private:
              i != points.end() ;
              ++i ) {
             const point_type& p = *i;
-            math< Traits >::mount(
-                total_center, e, p.source_position * p.mass );
-            math< Traits >::mount( total_mass, mass_e, p.mass );
+            vector_type mv = p.source_position * p.mass;
+            math<Traits>::mount(total_center, e, mv);
+            math<Traits>::mount(total_mass, mass_e, p.mass);
         }
 
         total_center *= real_type( 1.0 ) / total_mass;

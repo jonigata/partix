@@ -40,6 +40,9 @@ struct D3DXVectorTraits {
     static real_type x( const vector_type& v ) { return v.x; }
     static real_type y( const vector_type& v ) { return v.y; }
     static real_type z( const vector_type& v ) { return v.z; }
+    static real_type& x( vector_type& v ) { return v.x; }
+    static real_type& y( vector_type& v ) { return v.y; }
+    static real_type& z( vector_type& v ) { return v.z; }
     static void x( vector_type& v, real_type x ) { v.x = x; }
     static void y( vector_type& v, real_type y ) { v.y = y; }
     static void z( vector_type& v, real_type z ) { v.z = z; }
@@ -197,10 +200,10 @@ public:
             // ...... field view
             shape_field_.reset( new Shape( device ) );
             shape_field_->build_from_mqo(
-                doc, 1.0f, D3DCOLOR_XRGB( 0, 255, 0 ) );
+                doc, 2.0f, D3DCOLOR_XRGB( 0, 255, 0 ) );
 
             // ...... field physics
-            body_ptr e( make_shell_body( doc, "field", 128, 1.0f ) );
+            body_ptr e( make_shell_body( doc, "field", 128, 2.0f ) );
             partix_field_ = e;
             partix_field_->set_features( false, false, true );
             bodies_.push_back( e );
@@ -220,7 +223,7 @@ public:
             for( int i = 0 ; i < ENTITY_COUNT ; i++ ) {
                 D3DXVECTOR3 o;
                 o.x = float( rand() % 6001 - 3000 ) / 2000;
-                o.y = float( rand() % 6001 - 3000 ) / 1000 + 5.0f;
+                o.y = float( rand() % 6001 - 3000 ) / 1000 + 4.0f;
                 o.z = float( rand() % 6001 - 3000 ) / 2000;
 
                 // ì¬

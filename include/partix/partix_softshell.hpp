@@ -13,6 +13,10 @@
 #include "partix_shell.hpp"
 #include "partix_math.hpp"
 
+#if !defined(PARTIX_ALIGN_OPERATOR)
+#define PARTIX_ALIGN_OPERATOR
+#endif
+
 namespace partix {
 
 template < class Traits >
@@ -663,6 +667,10 @@ private:
 	real_type		freezing_duration_;
 
 	template < class T > friend class World;
+
+public:
+    PARTIX_ALIGN_OPERATOR
+
 };
 
 } // namespace partix

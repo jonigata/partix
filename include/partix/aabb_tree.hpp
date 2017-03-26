@@ -18,6 +18,8 @@ public:
 	typedef typename Traits::real_type		real_type;
 	typedef typename Traits::vector_type	vector_type;
 
+        typedef typename Traits::vector_traits vt;
+
 	struct aabb_node {
 		vector_type		min;
 		vector_type		max;
@@ -38,10 +40,9 @@ public:
 	}
 
 	void insert(
-		const vector_type& min,
-		const vector_type& max,
-		const T& x )
-	{
+            const vector_type& min,
+            const vector_type& max,
+            const T& x) {
 		//aabb_node* n = new aabb_node;
 		aabb_node* n = create_node();
 		n->min = min;
@@ -142,8 +143,8 @@ private:
 	int get_longest_axis( const vector_type& min, const vector_type& max )
 	{
 		vector_type d = max - min;
-		if( d.x > d.y && d.x > d.z ) { return 0; }
-		if( d.y > d.z ) { return 1; }
+		if( vt::x(d) > vt::y(d) && vt::x(d) > vt::z(d) ) { return 0; }
+		if( vt::y(d) > vt::z(d) ) { return 1; }
 		return 2;
 	}
 
@@ -156,26 +157,26 @@ private:
 	{
 		switch( axis ) {
 		case 0:
-			if( ( p->max.x + p->min.x ) < ( q->max.x + q->min.x ) ) {
-				car = p; cdr = q;
-			} else {
-				car = q; cdr = p;
-			}
-			break;
+                    if( ( vt::x(p->max) + vt::x(p->min) ) < ( vt::x(q->max) + vt::x(q->min) ) ) {
+                        car = p; cdr = q;
+                    } else {
+                        car = q; cdr = p;
+                    }
+                    break;
 		case 1:
-			if( ( p->max.y + p->min.y ) < ( q->max.y + q->min.y ) ) {
-				car = p; cdr = q;
-			} else {
-				car = q; cdr = p;
-			}
-			break;
+                    if( ( vt::y(p->max) + vt::y(p->min) ) < ( vt::y(q->max) + vt::y(q->min) ) ) {
+                        car = p; cdr = q;
+                    } else {
+                        car = q; cdr = p;
+                    }
+                    break;
 		case 2:
-			if( ( p->max.z + p->min.z ) < ( q->max.z + q->min.z ) ) {
-				car = p; cdr = q;
-			} else {
-				car = q; cdr = p;
-			}
-			break;
+                    if( ( vt::z(p->max) + vt::z(p->min) ) < ( vt::z(q->max) + vt::z(q->min) ) ) {
+                        car = p; cdr = q;
+                    } else {
+                        car = q; cdr = p;
+                    }
+                    break;
 		default: assert(0);
 		}
 	}
@@ -191,13 +192,13 @@ private:
 		const vector_type& qmin = q->min;
 		const vector_type& qmax = q->max;
 				
-		min.x = pmin.x < qmin.x ? pmin.x : qmin.x;
-		min.y = pmin.y < qmin.y ? pmin.y : qmin.y;
-		min.z = pmin.z < qmin.z ? pmin.z : qmin.z;
+		vt::x(min) = vt::x(pmin) < vt::x(qmin) ? vt::x(pmin) : vt::x(qmin);
+		vt::y(min) = vt::y(pmin) < vt::y(qmin) ? vt::y(pmin) : vt::y(qmin);
+		vt::z(min) = vt::z(pmin) < vt::z(qmin) ? vt::z(pmin) : vt::z(qmin);
 				
-		max.x = pmax.x < qmax.x ? qmax.x : pmax.x;
-		max.y = pmax.y < qmax.y ? qmax.y : pmax.y;
-		max.z = pmax.z < qmax.z ? qmax.z : pmax.z;
+		vt::x(max) = vt::x(pmax) < vt::x(qmax) ? vt::x(qmax) : vt::x(pmax);
+		vt::y(max) = vt::y(pmax) < vt::y(qmax) ? vt::y(qmax) : vt::y(pmax);
+		vt::z(max) = vt::z(pmax) < vt::z(qmax) ? vt::z(qmax) : vt::z(pmax);
 	}
 
 	bool test_aabb_aabb( aabb_node* a, aabb_node* b )
@@ -208,9 +209,10 @@ private:
 	bool test_aabb_aabb( const vector_type& amin, const vector_type& amax,
 						 const vector_type& bmin, const vector_type& bmax ) 
 	{
-		return !( amax.x < bmin.x || amin.x > bmax.x ||
-				  amax.y < bmin.y || amin.y > bmax.y ||
-				  amax.z < bmin.z || amin.z > bmax.z );
+		return !(
+                    vt::x(amax) < vt::x(bmin) || vt::x(amin) > vt::x(bmax) ||
+                    vt::y(amax) < vt::y(bmin) || vt::y(amin) > vt::y(bmax) ||
+                    vt::z(amax) < vt::z(bmin) || vt::z(amin) > vt::z(bmax));
 	}
 
 private:

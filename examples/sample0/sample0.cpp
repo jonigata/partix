@@ -1,4 +1,3 @@
-// $Id: sample0.cpp 34 2008-12-08 07:16:36Z Naoyuki.Hirayama $
 
 // ŠÂ‹«”ñˆË‘¶‚Ìphysics sample
 // ƒŒƒ“ƒ_ƒŠƒ“ƒO‚ÍSVG‚ğ¶¬‚·‚éB

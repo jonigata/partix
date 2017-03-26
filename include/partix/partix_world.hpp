@@ -67,6 +67,8 @@ public:
     typedef typename ray_processor_type::triangle_slot triangle_slot;
     typedef typename ray_processor_type::ray_slot      ray_slot;
 
+    typedef typename Traits::vector_traits vt;
+
     typedef void ( World< Traits >::*collision_resolver_type )(
         collidable_type*, collidable_type* );
 
@@ -908,11 +910,11 @@ private:
             points_type& epoints = ep->get_points();
             typename mesh_type::edge_type& e = ep->get_edges()[ei];
 
-            real_type t = real_type( 1.0 ) - uvt.z;
+            real_type t = real_type( 1.0 ) - vt::z(uvt);
             if( e.t < t ) { return; }
 
-            e.u = uvt.x;
-            e.v = uvt.y;
+            e.u = vt::x(uvt);
+            e.v = vt::y(uvt);
             e.w = real_type( 1.0 ) - e.u - e.v;
             e.t = t;
 
@@ -964,10 +966,10 @@ private:
                 &fpoints[f.i0],
                 &fpoints[f.i1],
                 &fpoints[f.i2],
-                uvt.x,
-                uvt.y,
-				real_type( 1.0 ) - uvt.x - uvt.y,
-				uvt.z );
+                vt::x(uvt),
+                vt::y(uvt),
+                real_type( 1.0 ) - vt::x(uvt) - vt::y(uvt),
+                vt::z(uvt) );
         }
 
     private:
@@ -1871,11 +1873,11 @@ private:
         if( a_body->get_alive() && a_body->get_influential() &&
             b_body->get_alive() && b_body->get_influential() ) {
 
-			if( rs->uvt.z < rs->target->penetration_magnifier ) {
-				rs->target->penetration_magnifier = rs->uvt.z;
+			if( vt::z(rs->uvt) < rs->target->penetration_magnifier ) {
+				rs->target->penetration_magnifier = vt::z(rs->uvt);
 
 				vector_type vv = ( rs->target->new_position - rs->source );
-				vector_type v = vv * ( real_type( 1.0 ) - rs->uvt.z );
+				vector_type v = vv * ( real_type( 1.0 ) - vt::z(rs->uvt) );
 				vector_type penetration =
 					plane_normal * dot( -v, plane_normal );
 
@@ -1887,10 +1889,10 @@ private:
 				c->B_point1 = rs->nearest.p1;
 				c->B_point2 = rs->nearest.p2;
 				c->A_point->penetration_vector = penetration;
-				c->u = rs->uvt.x;
-				c->v = rs->uvt.y;
+				c->u = vt::x(rs->uvt);
+				c->v = vt::y(rs->uvt);
 				c->w = real_type( 1.0 ) - c->u - c->v;
-				c->t = rs->uvt.z;
+				c->t = vt::z(rs->uvt);
 				c->alpha = 0;
 				c->check();
 
