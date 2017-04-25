@@ -294,12 +294,12 @@ private:
                 
         cloud_->update_bb( bbmin_, bbmax_ );
 
-        vt::x(bbmin_) -= thickness_;
-        vt::y(bbmin_) -= thickness_;
-        vt::z(bbmin_) -= thickness_;
-        vt::x(bbmax_) += thickness_;
-        vt::y(bbmax_) += thickness_;
-        vt::z(bbmax_) += thickness_;
+        vt::x(bbmin_, vt::x(bbmin_) - thickness_);
+        vt::y(bbmin_, vt::y(bbmin_) - thickness_);
+        vt::z(bbmin_, vt::z(bbmin_) - thickness_);
+        vt::x(bbmax_, vt::x(bbmax_) + thickness_);
+        vt::y(bbmax_, vt::y(bbmax_) + thickness_);
+        vt::z(bbmax_, vt::z(bbmax_) + thickness_);
     }
 
     void end_frame_internal()

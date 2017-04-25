@@ -1270,9 +1270,9 @@ public:
 
 					// セルの中央
 					vector_type c;
-					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
-					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
-					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c, ( x + real_type( 0.5 ) ) * gridsize);
+                                        vt::y(c, ( y + real_type( 0.5 ) ) * gridsize);
+                                        vt::z(c, ( z + real_type( 0.5 ) ) * gridsize);
 
 					// plane - sphere(セル幅の対角線を直径とする)でカリング
 					real_type dist = math< Traits >::dot( c, n ) - d;
@@ -1345,7 +1345,11 @@ private:
 			vector_type uvt;
 			if( !collide( p, q, uvt ) ) { return false; }
 
-			std::swap( vt::x(uvt), vt::y(uvt) ); // 裏表反転してあるから
+                        float uvtx = vt::x(uvt);
+                        float uvty = vt::y(uvt);
+			std::swap(uvtx, uvty); // 裏表反転してあるから
+                        vt::x(uvt, uvtx);
+                        vt::y(uvt, uvty);
 			c_( p->mesh, p->index, q->mesh, q->index, uvt );
 			return true;
 		}
@@ -1844,9 +1848,9 @@ public:
 
 					// セルの中央
 					vector_type c;
-					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
-					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
-					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c, ( x + real_type( 0.5 ) ) * gridsize);
+					vt::y(c, ( y + real_type( 0.5 ) ) * gridsize);
+					vt::z(c, ( z + real_type( 0.5 ) ) * gridsize);
 
 					// plane - sphere(セル幅の対角線を直径とする)でカリング
 					real_type dist = math< Traits >::dot( c, n ) - d;
@@ -2037,9 +2041,9 @@ public:
 
 					// セルの中央
 					vector_type c;
-					vt::x(c) = ( x + real_type( 0.5 ) ) * gridsize;
-					vt::y(c) = ( y + real_type( 0.5 ) ) * gridsize;
-					vt::z(c) = ( z + real_type( 0.5 ) ) * gridsize;
+					vt::x(c, ( x + real_type( 0.5 ) ) * gridsize);
+					vt::y(c, ( y + real_type( 0.5 ) ) * gridsize);
+					vt::z(c, ( z + real_type( 0.5 ) ) * gridsize);
 
 					// plane - sphere(セル幅の対角線を直径とする)でカリング
 					real_type dist = math< Traits >::dot( c, n ) - d;

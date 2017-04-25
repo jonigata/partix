@@ -1,0 +1,9 @@
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 chamfer.mqo chamfer.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 cone.mqo cone.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 cube.mqo cube.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 field.mqo field.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 pig.mqo pig.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 sphere.mqo sphere.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 torus.mqo torus.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 prism.mqo prism.tcf
+..\mqo2tcf_vs2017\Debug\mqo2tcf_vs2017 tetra.mqo tetra.tcf

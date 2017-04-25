@@ -43,15 +43,17 @@ create_triangle_list(
 
         // とりあえず頂点全部放り込む
         for (const auto& src: obj.vertices) {
-            p.vertices.push_back(vector_type(src.x, src.y, src.z));
+            // x反転(mqoは右手YUP、FBXの標準は左手YUPらしいので)
+            p.vertices.push_back(vector_type(-src.x, src.y, src.z));
         }
 
         // 面も全部放り込む
         // 面倒なので四角ポリゴンはないものと仮定
         for (const auto& face: obj.faces) {
+            // x反転したので順序入れ替え
             p.indices.push_back(face.vertex_indices[0]);
-            p.indices.push_back(face.vertex_indices[1]);
             p.indices.push_back(face.vertex_indices[2]);
+            p.indices.push_back(face.vertex_indices[1]);
         }
 
         primitives.push_back(p);

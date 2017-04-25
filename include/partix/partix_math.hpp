@@ -424,9 +424,7 @@ struct math {
                                    const vector_type& v3,
                                    vector_type& bbmin,
                                    vector_type& bbmax) {
-        minmax4(vt::x(v0), vt::x(v1), vt::x(v2), vt::x(v3), vt::x(bbmin), vt::x(bbmax));
-        minmax4(vt::y(v0), vt::y(v1), vt::y(v2), vt::y(v3), vt::y(bbmin), vt::y(bbmax));
-        minmax4(vt::z(v0), vt::z(v1), vt::z(v2), vt::z(v3), vt::z(bbmin), vt::z(bbmax));
+        minmax4_vector(v0, v1, v2, v3, bbmin, bbmax);
     }
 
     static void get_triangle_bb(const vector_type& v0,
@@ -434,26 +432,34 @@ struct math {
                                 const vector_type& v2,
                                 vector_type& bbmin,
                                 vector_type& bbmax) {
-        minmax3(vt::x(v0), vt::x(v1), vt::x(v2), vt::x(bbmin), vt::x(bbmax));
-        minmax3(vt::y(v0), vt::y(v1), vt::y(v2), vt::y(bbmin), vt::y(bbmax));
-        minmax3(vt::z(v0), vt::z(v1), vt::z(v2), vt::z(bbmin), vt::z(bbmax));
+        minmax3_vector(v0, v1, v2, bbmin, bbmax);
     }
 
     static void get_segment_bb(const vector_type& v0,
                                const vector_type& v1,
                                vector_type& bbmin,
                                vector_type& bbmax) {
-        minmax2(vt::x(v0), vt::x(v1), vt::x(bbmin), vt::x(bbmax));
-        minmax2(vt::y(v0), vt::y(v1), vt::y(bbmin), vt::y(bbmax));
-        minmax2(vt::z(v0), vt::z(v1), vt::z(bbmin), vt::z(bbmax));
+        minmax2_vector(v0, v1, bbmin, bbmax);
     }
 
     static void update_bb(vector_type& bbmin,
                           vector_type& bbmax,
                           const vector_type& p) {
-        update_minmax(vt::x(bbmin), vt::x(bbmax), vt::x(p));
-        update_minmax(vt::y(bbmin), vt::y(bbmax), vt::y(p));
-        update_minmax(vt::z(bbmin), vt::z(bbmax), vt::z(p));
+        float bbminx = vt::x(bbmin);
+        float bbminy = vt::y(bbmin);
+        float bbminz = vt::z(bbmin);
+        float bbmaxx = vt::x(bbmax);
+        float bbmaxy = vt::y(bbmax);
+        float bbmaxz = vt::z(bbmax);
+        update_minmax(bbminx, bbmaxx, vt::x(p));
+        update_minmax(bbminy, bbmaxy, vt::y(p));
+        update_minmax(bbminz, bbmaxz, vt::z(p));
+        vt::x(bbmin, bbminx);
+        vt::y(bbmin, bbminy);
+        vt::z(bbmin, bbminz);
+        vt::x(bbmax, bbmaxx);
+        vt::y(bbmax, bbmaxy);
+        vt::z(bbmax, bbmaxz);
     }
 
     static void update_minmax(real_type& mn, real_type& mx, real_type v) {
@@ -718,7 +724,7 @@ struct math {
         vector_type tvec = r0 - v0;
 
         /* calculate U parameter and test bounds */
-        vt::x(uvt) = math<Traits>::dot(tvec, pvec);
+        vt::x(uvt, math<Traits>::dot(tvec, pvec));
         if (vt::x(uvt) <0 || vt::x(uvt) > det)
             return false;
 
@@ -726,7 +732,7 @@ struct math {
         vector_type qvec = math<Traits>::cross(tvec, e1);
 
         /* calculate V parameter and test bounds */
-        vt::y(uvt) = math<Traits>::dot(dir, qvec);
+        vt::y(uvt, math<Traits>::dot(dir, qvec));
         if (vt::y(uvt) <0 || vt::x(uvt) + vt::y(uvt)> det)
             return false;
 
@@ -735,7 +741,7 @@ struct math {
         if (z <0 || det < z)
             return false;
 
-        vt::z(uvt) = z;
+        vt::z(uvt, z);
         uvt *= real_type(1.0)/ det;
 
         return true;
@@ -767,7 +773,7 @@ struct math {
         vector_type tvec = r0 - v0;
 
         /* calculate U parameter and test bounds */
-        vt::x(uvt) = math<Traits>::dot(tvec, pvec);
+        vt::x(uvt, math<Traits>::dot(tvec, pvec));
         if (vt::x(uvt) < 0 || vt::x(uvt) > det)
             return false;
 
@@ -775,7 +781,7 @@ struct math {
         vector_type qvec = math<Traits>::cross(tvec, e1);
 
         /* calculate V parameter and test bounds */
-        vt::y(uvt) = math<Traits>::dot(dir, qvec);
+        vt::y(uvt, math<Traits>::dot(dir, qvec));
         if (vt::y(uvt) < 0 || vt::x(uvt) + vt::y(uvt) > det)
             return false;
 
@@ -785,7 +791,7 @@ struct math {
         if (z < 0)// ”¼’¼ü
             return false;
 
-        vt::z(uvt) = z;
+        vt::z(uvt, z);
         uvt *= real_type(1.0)/ det;
 
         return true;

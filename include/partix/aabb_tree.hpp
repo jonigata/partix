@@ -192,13 +192,13 @@ private:
 		const vector_type& qmin = q->min;
 		const vector_type& qmax = q->max;
 				
-		vt::x(min) = vt::x(pmin) < vt::x(qmin) ? vt::x(pmin) : vt::x(qmin);
-		vt::y(min) = vt::y(pmin) < vt::y(qmin) ? vt::y(pmin) : vt::y(qmin);
-		vt::z(min) = vt::z(pmin) < vt::z(qmin) ? vt::z(pmin) : vt::z(qmin);
+		vt::x(min, vt::x(pmin) < vt::x(qmin) ? vt::x(pmin) : vt::x(qmin));
+		vt::y(min, vt::y(pmin) < vt::y(qmin) ? vt::y(pmin) : vt::y(qmin));
+		vt::z(min, vt::z(pmin) < vt::z(qmin) ? vt::z(pmin) : vt::z(qmin));
 				
-		vt::x(max) = vt::x(pmax) < vt::x(qmax) ? vt::x(qmax) : vt::x(pmax);
-		vt::y(max) = vt::y(pmax) < vt::y(qmax) ? vt::y(qmax) : vt::y(pmax);
-		vt::z(max) = vt::z(pmax) < vt::z(qmax) ? vt::z(qmax) : vt::z(pmax);
+		vt::x(max, vt::x(pmax) < vt::x(qmax) ? vt::x(qmax) : vt::x(pmax));
+		vt::y(max, vt::y(pmax) < vt::y(qmax) ? vt::y(qmax) : vt::y(pmax));
+		vt::z(max, vt::z(pmax) < vt::z(qmax) ? vt::z(qmax) : vt::z(pmax));
 	}
 
 	bool test_aabb_aabb( aabb_node* a, aabb_node* b )
