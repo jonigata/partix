@@ -21,9 +21,16 @@ extern "C" {
     PARTIX_DLL_API void SetGravity(PartixWorld*, Vector g);
 
     PARTIX_DLL_API softvolume_type* CreateSoftVolume(
-        PartixWorld* world, const char* tcf, Vector position, float scale);
+        PartixWorld* world, const char* tcf, Vector position, 
+        float scale, float mass);
     PARTIX_DLL_API softvolume_type* CreateVehicle(
-        PartixWorld* world, const char* tcf, Vector position, float scale);
+        PartixWorld* world, const char* tcf, Vector position, 
+        float scale, float mass);
+    PARTIX_DLL_API softshell_type* CreateSoftShell(
+        PartixWorld* world, 
+        int vertex_count, Vector* vertices, 
+        int triangle_count, int* triangles,
+        int threshold, Vector location, float scale, float mass);
 
     PARTIX_DLL_API body_type* CreatePlane(
         PartixWorld* world, Vector position, Vector normal);
@@ -40,6 +47,12 @@ extern "C" {
         PartixWorld* world, softvolume_type* b, Vector* buffer);
     PARTIX_DLL_API void GetWireFrameIndices(
         PartixWorld* world, softvolume_type* b, int* buffer);
+    PARTIX_DLL_API void GetPointLoads(
+        PartixWorld* world, softvolume_type* b, 
+        PartixTraits::point_load_type* buffer);
+    PARTIX_DLL_API void SetPointLoads(
+        PartixWorld* world, softvolume_type* b, 
+        const PartixTraits::point_load_type* buffer);
 
     PARTIX_DLL_API void AnalyzeVehicle(
         PartixWorld*        world, 
@@ -57,6 +70,10 @@ extern "C" {
 	softvolume_type*    sv,
         VehicleParameter*   vp,
         Vector              accel);
+
+    PARTIX_DLL_API void RotateEntity(
+        PartixWorld* world, softvolume_type* b, 
+        float w, float x, float y, float z);
 
 }
 

@@ -40,7 +40,6 @@ struct VectorTraits {
     }
 };
 
-
 /*===========================================================================*/
 /*!
  * PartixTraits
@@ -68,6 +67,8 @@ struct PartixTraits {
         float right_grip;
         float accel;
         float jump;
+        float weight;
+        float friction;
     };
 
     static real_type speed_drag_coefficient() { return  0.0001f; }
@@ -184,7 +185,22 @@ typedef std::shared_ptr<body_type>              body_ptr;
 typedef std::shared_ptr<cloud_type>             cloud_ptr;
 typedef std::shared_ptr<block_type>             block_ptr;
 typedef std::shared_ptr<softvolume_type>        softvolume_ptr;
+typedef std::shared_ptr<softshell_type>         softshell_ptr;
 
+struct Triangle {
+    int i0;
+    int i1;
+    int i2;
+};
+
+inline
+Vector centroid(const face_type& f, const points_type& points) {
+    const Vector& v00 = points[f.i0].new_position;
+    const Vector& v01 = points[f.i1].new_position;
+    const Vector& v02 = points[f.i2].new_position;
+    return (v00 + v01 + v02) / 3.0f;
+}
+    
 class PartixWorld {
 public:
     PartixWorld() {
@@ -212,11 +228,10 @@ public:
     }
 
     softvolume_ptr add_softvolume(
-        const char* tcf, const vector_type& location, float scale) {
-        vector_type o = location;
+        const char* tcf, const vector_type& location, float scale, float mass) {
 
         // 作成
-        softvolume_type* v = make_volume_body(tcf, scale);
+        softvolume_type* v = make_volume_body(tcf, scale, mass);
 
         // 硬さ、摩擦
         v->set_stretch_factor(stretch_factor_);
@@ -227,7 +242,7 @@ public:
                                 
         // 登録
         softvolume_ptr e(v);
-        e->teleport(o);
+        e->teleport(location);
         e->set_auto_freezing(false);
         bodies_.push_back(e);
         models_.push_back(e);
@@ -240,11 +255,33 @@ public:
     }
 
     softvolume_ptr add_vehicle(
-        const char* tcf, const vector_type& location, float scale) {
-        softvolume_ptr p = add_softvolume(tcf, location, scale);
-        setup_vehicle(p.get(), POINT_MASS, scale);
+        const char* tcf, const vector_type& location, float scale, float mass) {
+        softvolume_ptr p = add_softvolume(tcf, location, scale, mass);
+        setup_vehicle(p.get(), scale, mass);
         return p;
     }
+
+    softshell_ptr add_softshell(
+        int             vertex_count,
+        const Vector*   vertices,
+        int             triangle_count,
+        const Triangle* triangles,
+        int             threshold,
+        const Vector&   location,
+        float           scale,
+        float           mass) {
+        softshell_type* v = make_shell_body(
+            vertex_count, vertices, triangle_count, triangles,
+            threshold, scale, mass);
+        softshell_ptr e(v);
+        e->teleport(location);
+        e->set_features(false, false, true);
+        bodies_.push_back(e);
+        world_->add_body(v);
+
+        return e;
+    }
+        
 
     void set_gravity(const vector_type& v) {
         gravity_ = v;
@@ -294,7 +331,8 @@ public:
     }
 
 private:
-    softvolume_type* make_volume_body(const char* tcf, float mag) {
+    softvolume_type* make_volume_body(
+        const char* tcf, float scale, float mass) {
         vector_type v0(0, 0, 0);
 
         tetra_type* e = new tetra_type;
@@ -309,10 +347,10 @@ private:
             for (int i = 0 ; i <node_count ; i++) {
                 vector_type v;
                 ss >> dummy >> v.x >> v.y >> v.z;
-                v.x *= mag;
-                v.y *= mag;
-                v.z *= mag;
-                e->add_point(v, POINT_MASS);
+                v.x *= scale;
+                v.y *= scale;
+                v.z *= scale;
+                e->add_point(v, mass);
             }
         }
 
@@ -355,8 +393,8 @@ private:
 
     void setup_vehicle(
         softvolume_type* sv,
-        float       mass,
-        float       scale_factor) {
+        float       scale_factor,
+        float       mass) {
         mass *= scale_factor;
 
         const float float_max = (std::numeric_limits<float>::max)();
@@ -393,18 +431,150 @@ private:
 
             // アクセル係数
             auto a = 1.0f - sp.y / bbw.y;
-            p.load.accel = a * a * mass * scale_factor; 
-            p.load.jump = mass * 500.0f;
+            auto b = sp.z / bbw.z;
+            p.load.accel = a * b * scale_factor; 
+            p.load.jump = 500.0f;
+            p.load.weight = mass;
         }
 
         sv->update_mass();
     }
 
+    softshell_type* make_shell_body(
+        int             vertex_count,
+        const Vector*   vertices,
+        int             triangle_count,
+        const Triangle* triangles,
+        int             threshold,
+        float           scale,
+        float           mass)
+    {
+        softshell_type* e = new softshell_type;
+
+        // vertex
+        cloud_type* c = new cloud_type;
+        for (int i = 0 ; i < vertex_count ; i++) {
+            const Vector& v = vertices[i];
+            c->add_point(v * scale, mass); 
+        }
+        clouds_.push_back(cloud_ptr(c));
+        e->add_cloud(c);
+
+        // index
+        block_type* b = new block_type;
+        for (int i = 0 ; i < triangle_count ; i++) {
+            const Triangle& t = triangles[i];
+            b->add_face(t.i0, t.i1, t.i2);
+        }
+
+        // 分割
+        divide_block(threshold, e, c, b);
+
+        return e;
+    }
+
+    struct face_compare {
+    public:
+        face_compare(int a, const cloud_type::points_type& p)
+            : axis(a), points(p) {}
+        bool operator()(const face_type& f0, const face_type& f1) {
+            Vector c0 = centroid(f0, points);
+            Vector c1 = centroid(f1, points);
+
+            switch (axis) {
+                case 0: return c0.x < c1.x; 
+                case 1: return c0.y < c1.y; 
+                case 2: return c0.z < c1.z; 
+                default: assert(0); return false;
+            }
+        }
+        
+        int                             axis;
+        const cloud_type::points_type&  points;
+    };
+    
+    void divide_block(
+        int             threshold,
+        softshell_type* body,
+        cloud_type*     c,
+        block_type*     b )
+    {
+        typename block_type::faces_type& faces = b->get_faces();
+        
+        int n = int(faces.size());
+
+        if (n <threshold) {
+            if (b->get_faces().empty()) {
+                delete b;
+            } else {
+                b->set_cloud(c);
+                b->set_body(body); 
+                b->setup();
+                body->add_block(b);
+
+                block_ptr bp(b);
+                blocks_.push_back(bp);
+            }
+            return;
+        }
+        
+        points_type& points = c->get_points();
+
+        // bounding box
+        float float_max = (std::numeric_limits<float>::max)();
+        Vector bbmin(  float_max,  float_max,  float_max );
+        Vector bbmax( -float_max, -float_max, -float_max );
+        for (const face_type& face: faces) {
+            update_bb(bbmin, bbmax, centroid(face, points));
+        }
+
+        // longest axis
+        int axis;
+        Vector bbw = bbmax - bbmin;
+        if( bbw.y <= bbw.x && bbw.z <= bbw.x ) {
+            axis = 0;
+        } else if( bbw.z <= bbw. y ) {
+            axis = 1;
+        } else {
+            axis = 2;
+        }
+          
+        // sort along axis
+        std::sort(
+            faces.begin(),
+            faces.end(),
+            face_compare(axis, c->get_points()));
+
+        // divide
+        block_type* b1 = new block_type;
+
+        for (int i = n/2 ; i <n ; i++) {
+            b1->add_face(faces[i].i0, faces[i].i1, faces[i].i2); 
+        }
+        faces.erase(faces.begin()+ n/2, faces.end());
+
+        divide_block(threshold, body, c, b);
+        divide_block(threshold, body, c, b1);
+    }
+
+    void update_bb(
+        Vector& bbmin,
+        Vector& bbmax,
+        const Vector& v) {
+        if (v.x <bbmin.x) { bbmin.x = v.x; }
+        if (v.y <bbmin.y) { bbmin.y = v.y; }
+        if (v.z <bbmin.z) { bbmin.z = v.z; }
+        if (bbmax.x <v.x) { bbmax.x = v.x; }
+        if (bbmax.y <v.y) { bbmax.y = v.y; }
+        if (bbmax.z <v.z) { bbmax.z = v.z; }
+    }
 
 private:
     std::unique_ptr<world_type> world_;
     std::vector<body_ptr>       bodies_;    // 全部
-    std::vector<softvolume_ptr> models_;    // figure系だけ
+    std::vector<softvolume_ptr> models_;    // figure系だけ 
+    std::vector<cloud_ptr>      clouds_;
+    std::vector<block_ptr>      blocks_;
 
     vector_type gravity_;
     float stretch_factor_;

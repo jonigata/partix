@@ -43,20 +43,34 @@ PARTIX_DLL_API void SetGravity(PartixWorld* world, Vector g) {
 }
 
 PARTIX_DLL_API softvolume_type* CreateSoftVolume(
-    PartixWorld* world, const char* tcf, Vector v, float scale) {
+    PartixWorld* world, const char* tcf, Vector v, float scale, float mass) {
 
     DebugLog("CreateSoftVolume");
-    softvolume_ptr b = world->add_softvolume(tcf, v, scale);
+    softvolume_ptr b = world->add_softvolume(tcf, v, scale, mass);
     return b.get();
 }
 
 PARTIX_DLL_API softvolume_type* CreateVehicle(
-    PartixWorld* world, const char* tcf, Vector v, float scale) {
-
+    PartixWorld* world, const char* tcf, Vector v, float scale, float mass) {
+    
     DebugLog("CreateVehicle");
-    softvolume_ptr b = world->add_vehicle(tcf, v, scale);
+    softvolume_ptr b = world->add_vehicle(tcf, v, scale, mass);
     return b.get();
 }
+
+PARTIX_DLL_API softshell_type* CreateSoftShell(
+    PartixWorld* world, 
+    int vertex_count, Vector* vertices, 
+    int triangle_count, int* triangles,
+    int threshold, Vector location, float scale, float mass) {
+    DebugLog("CreateSoftShell");
+    softshell_ptr b = world->add_softshell(
+        vertex_count, vertices, triangle_count, (Triangle*)triangles,
+        threshold, location, scale, mass);
+    return b.get();
+}
+    
+
 
 PARTIX_DLL_API body_type* CreatePlane(
     PartixWorld* world, Vector position, Vector normal) {
@@ -93,13 +107,35 @@ PARTIX_DLL_API void GetWireFrameVertices(
     }
 }
 
-
 PARTIX_DLL_API void GetWireFrameIndices(
     PartixWorld* world, softvolume_type* b, int* buffer) {
     for (const auto& e: b->get_mesh()->get_edges()) {
         *buffer++ = e.indices.i0;
         *buffer++ = e.indices.i1;
     }
+}
+
+PARTIX_DLL_API void GetPointLoads(
+    PartixWorld* world, softvolume_type* b, 
+    PartixTraits::point_load_type* buffer) {
+    for (const auto& p: b->get_mesh()->get_points()) {
+        *buffer = p.load;
+        buffer->weight = p.mass;
+        buffer->friction = p.friction;
+        buffer++;
+    }
+}
+
+PARTIX_DLL_API void SetPointLoads(
+    PartixWorld* world, softvolume_type* b, 
+    const PartixTraits::point_load_type* buffer) {
+    for (auto& p: b->get_mesh()->get_points()) {
+        p.mass = buffer->weight;
+        p.friction = buffer->friction;
+        p.load = *buffer;
+        buffer++;
+    }
+    b->update_mass();
 }
 
 PARTIX_DLL_API void AnalyzeVehicle(
@@ -201,7 +237,13 @@ PARTIX_DLL_API void AccelerateVehicle(
     mesh_type*      mesh     = sv->get_mesh();
     points_type&    vertices = mesh->get_points();
     for(auto& p: vertices) {
-        p.forces += accel * p.load.accel * accel_factor;
+        p.forces += accel * (p.mass * p.load.accel * accel_factor);
     }
+}
+
+PARTIX_DLL_API void RotateEntity(
+    PartixWorld* world, softvolume_type* b, 
+    float w, float x, float y, float z) {
+    b->rotate(w, x, y, z);
 }
 
