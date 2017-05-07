@@ -45,7 +45,6 @@ PARTIX_DLL_API void SetGravity(PartixWorld* world, Vector g) {
 PARTIX_DLL_API softvolume_type* CreateSoftVolume(
     PartixWorld* world, const char* tcf, Vector v, float scale, float mass) {
 
-    DebugLog("CreateSoftVolume");
     softvolume_ptr b = world->add_softvolume(tcf, v, scale, mass);
     return b.get();
 }
@@ -53,7 +52,6 @@ PARTIX_DLL_API softvolume_type* CreateSoftVolume(
 PARTIX_DLL_API softvolume_type* CreateVehicle(
     PartixWorld* world, const char* tcf, Vector v, float scale, float mass) {
     
-    DebugLog("CreateVehicle");
     softvolume_ptr b = world->add_vehicle(tcf, v, scale, mass);
     return b.get();
 }
@@ -63,7 +61,6 @@ PARTIX_DLL_API softshell_type* CreateSoftShell(
     int vertex_count, Vector* vertices, 
     int triangle_count, int* triangles,
     int threshold, Vector location, float scale, float mass) {
-    DebugLog("CreateSoftShell");
     softshell_ptr b = world->add_softshell(
         vertex_count, vertices, triangle_count, (Triangle*)triangles,
         threshold, location, scale, mass);
@@ -74,7 +71,6 @@ PARTIX_DLL_API softshell_type* CreateSoftShell(
 
 PARTIX_DLL_API body_type* CreatePlane(
     PartixWorld* world, Vector position, Vector normal) {
-    DebugLog("CreatePlane");
     return world->add_plane(position, normal).get();
 }
 
@@ -149,7 +145,7 @@ PARTIX_DLL_API void AnalyzeVehicle(
     float		sensory_balance,
     VehicleAnalyzeData*	ad) {
     
-    // Žp¨EƒXƒs[ƒh
+    // å§¿å‹¢ãƒ»ã‚¹ãƒ”ãƒ¼ãƒ‰
     ad->pom = prev_orientaion; normalize_f(ad->pom);
     ad->com = curr_orientaion; normalize_f(ad->com);
     ad->right = ad->com.xaxis();
@@ -245,5 +241,23 @@ PARTIX_DLL_API void RotateEntity(
     PartixWorld* world, softvolume_type* b, 
     float w, float x, float y, float z) {
     b->rotate(w, x, y, z);
+}
+
+PARTIX_DLL_API void SetEntityFeatures(
+    PartixWorld* world, softvolume_type* b, EntityFeatures ef) {
+    
+    b->set_stretch_factor(ef.stretch_factor);
+    b->set_restore_factor(ef.restore_factor);
+    b->set_features(ef.alive, ef.positive, ef.influential);
+    b->set_frozen(ef.frozen);
+}
+
+PARTIX_DLL_API void FixEntity(
+    PartixWorld* world, softvolume_type* b, Vector origin) {
+    for (auto& p: b->get_mesh()->get_points()) {
+        if(p.load.fix_target) {
+            p.new_position = origin + p.source_position;
+        }
+    }
 }
 

@@ -53,6 +53,11 @@ extern "C" {
     PARTIX_DLL_API void SetPointLoads(
         PartixWorld* world, softvolume_type* b, 
         const PartixTraits::point_load_type* buffer);
+    PARTIX_DLL_API void SetEntityFeatures(
+        PartixWorld* world, softvolume_type* b, EntityFeatures ef);
+    PARTIX_DLL_API void FixEntity(
+        PartixWorld* world, softvolume_type* b, 
+        Vector origin);
 
     PARTIX_DLL_API void AnalyzeVehicle(
         PartixWorld*        world, 

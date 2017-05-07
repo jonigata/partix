@@ -69,6 +69,7 @@ struct PartixTraits {
         float jump;
         float weight;
         float friction;
+        int fix_target; // boolだとinteroperabilityが怪しい
     };
 
     static real_type speed_drag_coefficient() { return  0.0001f; }
@@ -156,6 +157,24 @@ struct VehicleAnalyzeData {
     Vector  bbmin;
     Vector  bbmax;
     float   mass;
+};
+
+/*===========================================================================*/
+/*!
+ * EntityFeatures
+ *
+ * 
+ */
+/*==========================================================================*/
+
+struct EntityFeatures {
+    float stretch_factor;
+    float restore_factor;
+    int alive;                  // 本当はbool, interoperabilityの都合
+    int positive;               // 本当はbool, interoperabilityの都合
+    int influential;            // 本当はbool, interoperabilityの都合
+    int auto_freezing;          // 本当はbool, interoperabilityの都合
+    int frozen;                 // 本当はbool, interoperabilityの都合
 };
 
 /*===========================================================================*/
@@ -374,7 +393,7 @@ private:
             for (int i = 0 ; i <node_count ; i++) {
                 int i0, i1, i2;
                 ss >> dummy >> i0 >> i1 >> i2 >> dummy;
-                e->add_face(i0, i1, i2);
+                e->add_face(i0, i2, i1);
             }
         }
 

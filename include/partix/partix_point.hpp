@@ -20,14 +20,14 @@ public:
     typedef typename Traits::vector_type            vector_type;
     typedef typename Traits::point_load_type        load_type;
 
-	int				id;
+    int    id;
     vector_type     new_position;           // 新しい位置
     vector_type     old_position;           // 古い位置
     vector_type     velocity;               // 現在の速度
     vector_type     normal;                 // 頂点法線
     vector_type     source_position;        // 初期位置
     vector_type     ideal_offset;           // 重心からのオフセット(変形済み)
-    vector_type     constraint_pushout;		// 制約による移動
+    vector_type     constraint_pushout;     // 制約による移動
     vector_type     active_contact_pushout; // 接触による移動(能動)
     vector_type     passive_contact_pushout;// 接触による移動(受動)
     vector_type     forces;                 // 力
@@ -35,6 +35,7 @@ public:
     real_type       mass;                   // 質量
     real_type       invmass;                // 質量の逆数
     load_type       load;                   // 積荷(ユーザー定義)
+    bool            immovable;              // 動かない
 
     // 以下は内部処理用
     bool            surface;                // 表面パーティクル
@@ -44,68 +45,67 @@ public:
     unsigned char   raytest;                // raytest用実行ステート
     real_type       energy;                 // 運動エネルギー
     real_type       penetration_depth_numerator;
-											// penetration depthの分子
+    // penetration depthの分子
     vector_type     penetration_direction_numerator;
-											// penetration dirの分子
+    // penetration dirの分子
     real_type       penetration_denominator; // penetrationの分母
     vector_type     penetration_vector;     // penetration vector
-	real_type		penetration_magnifier;	// c.t
-	vector_type		friction_vector;		// friction vector
+    real_type  penetration_magnifier; // c.t
+    vector_type  friction_vector;  // friction vector
     vector_type     penetration_error;      // penetration depthの誤差
     vector_type     tmp_velocity;           // 中間速度
     real_type       contact;
-							// 1+Σ^n_j=1.hji(barycentric座標のsum, cの分母)
+    // 1+Σ^n_j = 1.hji(barycentric座標のsum, cの分母)
     int             cloth_flags;            // cloth用bitflags
     void*           ray_slot;               // rayprocess用データ
-	vector_type		view_vector0;			// 後で消す
-	vector_type		view_vector1;			// 後で消す
-	vector_type		free_position;			// 後で消す
+    vector_type  view_vector0;   // 後で消す
+    vector_type  view_vector1;   // 後で消す
+    vector_type  free_position;   // 後で消す
 
-    void check()
-    {
+    void check() {
 #if 0
-        if( isnan( friction ) ) {
+        if (isnan(friction)) {
             char buffer[256];
-            sprintf( buffer, "friction: %f\n", friction );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "friction: %f\n", friction);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
-        if( isnan( new_position.x ) ||
-            isnan( new_position.y ) ||
-            isnan( new_position.z ) ) {
+        if (isnan(new_position.x)||
+            isnan(new_position.y)||
+            isnan(new_position.z)) {
             char buffer[256];
-            sprintf( buffer, "new_position: %f, %f, %f\n", new_position.x, new_position.y, new_position.z );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "new_position: %f, %f, %f\n", new_position.x, new_position.y, new_position.z);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
-        if( isnan( old_position.x ) ||
-            isnan( old_position.y ) ||
-            isnan( old_position.z ) ) {
+        if (isnan(old_position.x)||
+            isnan(old_position.y)||
+            isnan(old_position.z)) {
             char buffer[256];
-            sprintf( buffer, "old_position: %f, %f, %f\n", old_position.x, old_position.y, old_position.z );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "old_position: %f, %f, %f\n", old_position.x, old_position.y, old_position.z);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
-        if( isnan( pushout0.x ) ||
-            isnan( pushout0.y ) ||
-            isnan( pushout0.z ) ) {
+        if (isnan(pushout0.x)||
+            isnan(pushout0.y)||
+            isnan(pushout0.z)) {
             char buffer[256];
-            sprintf( buffer, "pushout0: %f, %f, %f\n", pushout0.x, pushout0.y, pushout0.z );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "pushout0: %f, %f, %f\n", pushout0.x, pushout0.y, pushout0.z);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
-        if( isnan( pushout1.x ) ||
-            isnan( pushout1.y ) ||
-            isnan( pushout1.z ) ) {
+        if (isnan(pushout1.x)||
+            isnan(pushout1.y)||
+            isnan(pushout1.z)) {
             char buffer[256];
-            sprintf( buffer, "pushout1: %f, %f, %f\n", pushout1.x, pushout1.y, pushout1.z );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "pushout1: %f, %f, %f\n", pushout1.x, pushout1.y, pushout1.z);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
-        if( isnan( mass ) || isnan( invmass ) ) {
+        if (isnan(mass)|| isnan(invmass)) {
             char buffer[256];
-            sprintf( buffer, "mass: %f, %f\n", mass, invmass );
-            OutputDebugStringA( buffer );
+            sprintf(buffer, "mass: %f, %f\n", mass, invmass);
+            OutputDebugStringA(buffer);
             DebugBreak();
         }
 #endif
