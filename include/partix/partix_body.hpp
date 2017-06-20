@@ -45,6 +45,7 @@ public:
 
     virtual void move(const vector_type& v) = 0;
     virtual void teleport(const vector_type& v) = 0;
+    virtual void add_force(const vector_type& v) = 0;
 
     virtual void begin_frame() = 0;
     virtual void compute_motion(real_type pdt, real_type dt, real_type idt) = 0;

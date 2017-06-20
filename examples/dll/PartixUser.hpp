@@ -5,6 +5,7 @@
 
 #include "Geometry.hpp"
 #include "partix/partix.hpp"
+#include "FileLogger.hpp"
 #include <sstream>
 #include <memory>
 
@@ -200,11 +201,19 @@ typedef partix::TetrahedralMesh<PartixTraits>   tetra_type;
 typedef partix::Face<PartixTraits>              face_type;
 typedef partix::math<PartixTraits>              math_type;
 
+typedef std::shared_ptr<tetra_type>             tetra_ptr;
 typedef std::shared_ptr<body_type>              body_ptr;
 typedef std::shared_ptr<cloud_type>             cloud_ptr;
 typedef std::shared_ptr<block_type>             block_ptr;
 typedef std::shared_ptr<softvolume_type>        softvolume_ptr;
 typedef std::shared_ptr<softshell_type>         softshell_ptr;
+
+struct Tetrahedron {
+    int i0;
+    int i1;
+    int i2;
+    int i3;
+};
 
 struct Triangle {
     int i0;
@@ -247,44 +256,34 @@ public:
     }
 
     softvolume_ptr add_softvolume(
-        const char* tcf, const vector_type& location, float scale, float mass) {
+        const char* tcf,
+        const vector_type& location, float scale, float mass) {
 
         // 作成
         softvolume_type* v = make_volume_body(tcf, scale, mass);
-
-        // 硬さ、摩擦
-        v->set_stretch_factor(stretch_factor_);
-        v->set_restore_factor(restore_factor_);
-        for (auto& p: v->get_mesh()->get_points()) {
-            p.friction = friction_;
-        }
-                                
-        // 登録
-        softvolume_ptr e(v);
-        e->teleport(location);
-        e->set_auto_freezing(false);
-        bodies_.push_back(e);
-        models_.push_back(e);
-        world_->add_body(e.get());
-
-        e->set_frozen(false);
-        e->set_global_force(gravity_);
-
-        return e;
+        return setup_softvolume(v, location);
     }
 
-    softvolume_ptr add_vehicle(
-        const char* tcf, const vector_type& location, float scale, float mass) {
-        softvolume_ptr p = add_softvolume(tcf, location, scale, mass);
-        setup_vehicle(p.get(), scale, mass);
-        return p;
+    softvolume_ptr add_softvolume(
+        int vertexCount, const vector_type* vertices,
+        int tetrahedronCount, const Tetrahedron* tetrahedra,
+        int faceCount, const Triangle* faces,
+        const vector_type& location, float scale, float mass) {
+
+        // 作成
+        softvolume_type* v = make_volume_body(
+            vertexCount, vertices,
+            tetrahedronCount, tetrahedra,
+            faceCount, faces,
+            scale, mass);
+        return setup_softvolume(v, location);
     }
 
     softshell_ptr add_softshell(
         int             vertex_count,
         const Vector*   vertices,
         int             triangle_count,
-        const Triangle* triangles,
+        const int*      triangles,
         int             threshold,
         const Vector&   location,
         float           scale,
@@ -297,7 +296,6 @@ public:
         e->set_features(false, false, true);
         bodies_.push_back(e);
         world_->add_body(v);
-
         return e;
     }
         
@@ -349,12 +347,62 @@ public:
         return softvolume_ptr();
     }
 
+    void setup_vehicle(
+        softvolume_type* sv,
+        float       scale_factor,
+        float       mass) {
+        mass *= scale_factor;
+
+        const float float_max = (std::numeric_limits<float>::max)();
+
+        // bounding box
+        mesh_type*   mesh = sv->get_mesh();
+        points_type& points = mesh->get_points();
+        Vector bbmin(float_max, float_max, float_max);
+        Vector bbmax(-float_max, -float_max, -float_max);
+        for (point_type& p: points) {
+            const Vector& sp = p.source_position;
+            if (sp.x < bbmin.x) { bbmin.x = sp.x; }
+            if (sp.y < bbmin.y) { bbmin.y = sp.y; }
+            if (sp.z < bbmin.z) { bbmin.z = sp.z; }
+            if (bbmax.x < sp.x) { bbmax.x = sp.x; }
+            if (bbmax.y < sp.y) { bbmax.y = sp.y; }
+            if (bbmax.z < sp.z) { bbmax.z = sp.z; }
+        }
+        Vector bbw = bbmax - bbmin;
+
+        for (point_type& p: points) {
+            p.mass = mass;
+            const Vector& sp = p.source_position;
+            float threshold = bbw.y * 0.02f;
+            bool under_threshold = sp.y < threshold;
+            bool front = 0.0f < sp.z;
+            bool right = 0.0f < sp.x;
+
+            // グリップは足元のみ
+            p.load.front_grip = under_threshold && front ? 1.0f : 0;
+            p.load.rear_grip =  under_threshold && !front ? 1.0f : 0;
+            p.load.left_grip =  under_threshold && right ? 1.0f : 0;
+            p.load.right_grip = under_threshold && !right ? 1.0f : 0;
+
+            // アクセル係数
+            auto a = 1.0f - sp.y / bbw.y;
+            auto b = sp.z / bbw.z;
+            p.load.accel = a * b * scale_factor; 
+            p.load.jump = 500.0f;
+            p.load.weight = mass;
+        }
+
+        sv->update_mass();
+    }
+
 private:
     softvolume_type* make_volume_body(
         const char* tcf, float scale, float mass) {
         vector_type v0(0, 0, 0);
 
         tetra_type* e = new tetra_type;
+        meshes_.push_back(tetra_ptr(e));
 
         std::stringstream ss(tcf);
 
@@ -410,60 +458,74 @@ private:
         return v;
     }
 
-    void setup_vehicle(
-        softvolume_type* sv,
-        float       scale_factor,
-        float       mass) {
-        mass *= scale_factor;
+    softvolume_type* make_volume_body(
+        int vertexCount, const vector_type* vertices,
+        int tetrahedronCount, const Tetrahedron* tetrahedra,
+        int faceCount, const Triangle* faces,
+        float scale, float mass) {
 
-        const float float_max = (std::numeric_limits<float>::max)();
+        vector_type v0(0, 0, 0);
 
-        // bounding box
-        mesh_type*   mesh = sv->get_mesh();
-        points_type& points = mesh->get_points();
-        Vector bbmin(float_max, float_max, float_max);
-        Vector bbmax(-float_max, -float_max, -float_max);
-        for (point_type& p: points) {
-            const Vector& sp = p.source_position;
-            if (sp.x < bbmin.x) { bbmin.x = sp.x; }
-            if (sp.y < bbmin.y) { bbmin.y = sp.y; }
-            if (sp.z < bbmin.z) { bbmin.z = sp.z; }
-            if (bbmax.x < sp.x) { bbmax.x = sp.x; }
-            if (bbmax.y < sp.y) { bbmax.y = sp.y; }
-            if (bbmax.z < sp.z) { bbmax.z = sp.z; }
+        tetra_type* e = new tetra_type;
+        tetra_ptr p(e);
+        meshes_.push_back(p);
+        for (int i = 0 ; i < vertexCount ; i++) {
+            vector_type v = vertices[i] * scale;
+            e->add_point(v, mass);
         }
-        Vector bbw = bbmax - bbmin;
-
-        for (point_type& p: points) {
-            p.mass = mass;
-            const Vector& sp = p.source_position;
-            float threshold = bbw.y * 0.02f;
-            bool under_threshold = sp.y < threshold;
-            bool front = 0.0f < sp.z;
-            bool right = 0.0f < sp.x;
-
-            // グリップは足元のみ
-            p.load.front_grip = under_threshold && front ? 1.0f : 0;
-            p.load.rear_grip =  under_threshold && !front ? 1.0f : 0;
-            p.load.left_grip =  under_threshold && right ? 1.0f : 0;
-            p.load.right_grip = under_threshold && !right ? 1.0f : 0;
-
-            // アクセル係数
-            auto a = 1.0f - sp.y / bbw.y;
-            auto b = sp.z / bbw.z;
-            p.load.accel = a * b * scale_factor; 
-            p.load.jump = 500.0f;
-            p.load.weight = mass;
+        
+        for (int i = 0 ; i < tetrahedronCount ; i++) {
+            e->add_tetrahedron(
+                tetrahedra[i].i0,
+                tetrahedra[i].i1,
+                tetrahedra[i].i2,
+                tetrahedra[i].i3);
         }
 
-        sv->update_mass();
+        for (int i = 0 ; i < faceCount ; i++) {
+            e->add_face(
+                faces[i].i0,
+                faces[i].i2,
+                faces[i].i1);
+        }
+
+        e->setup();
+        softvolume_type* v = new softvolume_type;
+        v->set_stretch_factor(stretch_factor_);
+        v->set_mesh(e);
+        v->regularize();
+        v->set_stretch_factor(stretch_factor_);
+        return v;
+    }
+
+    softvolume_ptr setup_softvolume(
+        softvolume_type* v, const vector_type& location) {
+        // 硬さ、摩擦
+        v->set_stretch_factor(stretch_factor_);
+        v->set_restore_factor(restore_factor_);
+        for (auto& p: v->get_mesh()->get_points()) {
+            p.friction = friction_;
+        }
+                                
+        // 登録
+        softvolume_ptr e(v);
+        e->teleport(location);
+        e->set_auto_freezing(false);
+        bodies_.push_back(e);
+        models_.push_back(e);
+        world_->add_body(e.get());
+
+        e->set_frozen(false);
+        e->set_global_force(gravity_);
+
+        return e;
     }
 
     softshell_type* make_shell_body(
         int             vertex_count,
         const Vector*   vertices,
         int             triangle_count,
-        const Triangle* triangles,
+        const int*      triangles,
         int             threshold,
         float           scale,
         float           mass)
@@ -482,7 +544,7 @@ private:
         // index
         block_type* b = new block_type;
         for (int i = 0 ; i < triangle_count ; i++) {
-            const Triangle& t = triangles[i];
+            const Triangle& t = *((const Triangle*)(&triangles[i*3]));
             b->add_face(t.i0, t.i1, t.i2);
         }
 
@@ -590,6 +652,7 @@ private:
 
 private:
     std::unique_ptr<world_type> world_;
+    std::vector<tetra_ptr>      meshes_;
     std::vector<body_ptr>       bodies_;    // 全部
     std::vector<softvolume_ptr> models_;    // figure系だけ 
     std::vector<cloud_ptr>      clouds_;

@@ -44,6 +44,7 @@ public:
 
     void            move( const vector_type& ) { }
     void            teleport( const vector_type& ) { }
+    void add_force( const vector_type& v ) { }
 
     void            begin_frame() {}
 	void			compute_motion( real_type, real_type, real_type ) {}

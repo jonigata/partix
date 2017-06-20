@@ -52,19 +52,46 @@ public:
         Real yu = y * u;
         Real zz = z * z;
         Real zu = z * u;
+        Real uu = u * u;
 
         Real r1 = Real(1.0);
         Real r2 = Real(2.0);
 
-        m[0] = r1 - r2 *(yy + zz);
-        m[1] = r2 *(xy + zu);
-        m[2] = r2 *(xz - yu);
-        m[3] = r2 *(xy - zu);
-        m[4] = r1 - r2 *(xx + zz);
-        m[5] = r2 *(yz + xu);
-        m[6] = r2 *(xz + yu);
-        m[7] = r2 *(yz - xu);
-        m[8] = r1 - r2 *(xx + yy);
+#if 0
+        m[0] = uu + xx - yy - zz;
+        m[1] = r2 * (zu + xy);
+        m[2] = r2 * (-yu + xz);
+        m[3] = r2 * (-zu + xy);
+        m[4] = uu - xx + yy - zz;
+        m[5] = r2 * (xu + yz);
+        m[6] = r2 * (yu + xz);
+        m[7] = r2 * (-xu + yz);
+        m[8] = uu - xx - yy + zz;
+
+        Real d = r1 / (uu + xx + yy + zz);
+        for (int i = 0 ; i < 9 ; i++) {
+            m[i] *= d;
+        }
+#else
+        m[0] = r1 - r2 * (yy + zz);
+        m[1] = r2 * (xy + zu);
+        m[2] = r2 * (xz - yu);
+        m[3] = r2 * (xy - zu);
+        m[4] = r1 - r2 * (xx + zz);
+        m[5] = r2 * (yz + xu);
+        m[6] = r2 * (xz + yu);
+        m[7] = r2 * (yz - xu);
+        m[8] = r1 - r2 * (xx + yy);
+#endif
+    }
+
+    static quaternion<Real> angle_axis(Real angle, Real x, Real y, Real z) {
+        Real s = std::sin(angle / 2);
+        return quaternion<Real>(std::cos(angle / 2), x * s, y * s, z * s);
+    }
+
+    static quaternion<Real> identity() {
+        return quaternion<Real>(Real(1), 0, 0, 0);
     }
 };
 
@@ -81,6 +108,9 @@ struct math {
     public:
         matrix(real_type* p) : p_(p) {}
         real_type* operator[](int i) { return p_ + i * 3; }
+        vector_type col(int n) const {
+            return Traits::vector_traits::make_vector(p_[n+0], p_[n+3], p_[n+6]);
+        }
     private:
         real_type* p_;
     };

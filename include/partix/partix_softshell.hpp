@@ -60,6 +60,14 @@ public:
 
 	void move( const vector_type& v ) { move_internal( v ); }
 	void teleport( const vector_type& v ) { teleport_internal( v ); }
+        void add_force( const vector_type& v )
+        {
+            for (const auto& c: clouds_) {
+                for (auto& p: c->get_points()) {
+                    p.forces += v;
+                }
+            }
+        }
 
 	void begin_frame() { begin_frame_internal(); }
 	void compute_motion( real_type pdt, real_type dt, real_type idt )
@@ -644,7 +652,6 @@ private:
 			b->set_center( block_center );
 		}
 	}
-
 
 private:
 	// touch_level_

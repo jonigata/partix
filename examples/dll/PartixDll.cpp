@@ -3,6 +3,8 @@
 #include "stdafx.h"
 #include "PartixDll.hpp"
 #include "PartixUser.hpp"
+#include "FileLogger.hpp"
+#include <fstream>
 
 static debug_log_func_type log_func = nullptr;
 
@@ -14,6 +16,8 @@ void DebugLog(const char* s) {
     if (log_func != nullptr) {
         log_func(s);
     }
+    std::ofstream ofs("t.log", std::ios_base::app);
+    ofs << s << std::endl;
 }
 
 PARTIX_DLL_API void SetDebugLog(debug_log_func_type f) {
@@ -26,6 +30,8 @@ PARTIX_DLL_API void DebugLogTest() {
 
 PARTIX_DLL_API PartixWorld* CreateWorld() {
     PartixWorld* world = new PartixWorld;
+    DebugLog("CreateWorld");
+    DebugLogPointer(world);
     world->restart();
     return world;
 }
@@ -52,19 +58,54 @@ PARTIX_DLL_API softvolume_type* CreateSoftVolume(
 PARTIX_DLL_API softvolume_type* CreateVehicle(
     PartixWorld* world, const char* tcf, Vector v, float scale, float mass) {
     
-    softvolume_ptr b = world->add_vehicle(tcf, v, scale, mass);
+    softvolume_ptr b = world->add_softvolume(tcf, v, scale, mass);
+    world->setup_vehicle(b.get(), scale, mass);
+    return b.get();
+}
+
+PARTIX_DLL_API softvolume_type* CreateSoftVolume2(
+    PartixWorld* world,
+    int vertexCount, const Vector* vertices,
+    int tetrahedronCount, const Tetrahedron* tetrahedra,
+    int faceCount, const Triangle* faces,
+    Vector position, float scale, float mass) {
+    if (world == nullptr) { return nullptr; }
+    DebugLog("CreateSoftVolume2");
+    DebugLogPointer(world);
+    softvolume_ptr b = world->add_softvolume(
+        vertexCount, vertices,
+        tetrahedronCount, tetrahedra,
+        faceCount, faces,
+        position, scale, mass);
+    DebugLog("B");
+    return b.get();
+}
+
+PARTIX_DLL_API softvolume_type* CreateVehicle2(
+    PartixWorld* world,
+    int vertexCount, const Vector* vertices,
+    int tetrahedronCount, const Tetrahedron* tetrahedra,
+    int faceCount, const Triangle* faces,
+    Vector position, float scale, float mass) {
+    softvolume_ptr b = world->add_softvolume(
+        vertexCount, vertices,
+        tetrahedronCount, tetrahedra,
+        faceCount, faces,
+        position, scale, mass);
+    world->setup_vehicle(b.get(), scale, mass);
     return b.get();
 }
 
 PARTIX_DLL_API softshell_type* CreateSoftShell(
     PartixWorld* world, 
-    int vertex_count, Vector* vertices, 
-    int triangle_count, int* triangles,
+    int vertex_count, const Vector* vertices, 
+    int triangle_count, const int* triangles,
     int threshold, Vector location, float scale, float mass) {
     softshell_ptr b = world->add_softshell(
-        vertex_count, vertices, triangle_count, (Triangle*)triangles,
+        vertex_count, vertices, triangle_count, triangles,
         threshold, location, scale, mass);
     return b.get();
+    return nullptr;
 }
     
 
@@ -75,8 +116,8 @@ PARTIX_DLL_API body_type* CreatePlane(
 }
 
 PARTIX_DLL_API void GetPosition(
-    PartixWorld* world, body_type* b, Vector* pos) {
-    *pos = b->get_current_center();
+    PartixWorld* world, body_type* b, Vector* position) {
+    *position = b->get_current_center();
 }
 
 PARTIX_DLL_API void GetOrientation(
@@ -97,7 +138,8 @@ PARTIX_DLL_API int GetWireFrameIndexCount(
 
 PARTIX_DLL_API void GetWireFrameVertices(
     PartixWorld* world, softvolume_type* b, Vector* buffer) {
-    Vector center = b->get_current_center();
+    auto m = b->get_deformed_matrix();
+    Vector center(m.m30, m.m31, m.m32);
     for (const auto& p: b->get_mesh()->get_points()) {
         *buffer++ = p.new_position - center;
     }
@@ -132,6 +174,23 @@ PARTIX_DLL_API void SetPointLoads(
         buffer++;
     }
     b->update_mass();
+    Vector c = b->get_initial_center();
+
+    // char logbuffer[256];
+    // sprintf(logbuffer, "before: %f, %f, %f\n", c.x, c.y, c.z);
+    // DebugLog(logbuffer);
+
+    b->calculate_initial_center();
+    c = b->get_initial_center();
+    // sprintf(logbuffer, "after: %f, %f, %f\n", c.x, c.y, c.z);
+    // DebugLog(logbuffer);
+
+    for (auto& p: b->get_mesh()->get_points()) {
+        if (!p.surface) { continue; }
+        Vector c = p.source_position;
+        // sprintf(logbuffer, "(%f, %f, %f): %f\n", c.x, c.y, c.z, p.mass);
+        // DebugLog(logbuffer);
+    }
 }
 
 PARTIX_DLL_API void AnalyzeVehicle(
@@ -228,12 +287,8 @@ PARTIX_DLL_API void AccelerateVehicle(
     VehicleParameter*   vp,
     Vector              accel) {
 
-    float accel_factor = vp->accel_factor;
-
-    mesh_type*      mesh     = sv->get_mesh();
-    points_type&    vertices = mesh->get_points();
-    for(auto& p: vertices) {
-        p.forces += accel * (p.mass * p.load.accel * accel_factor);
+    for(auto& p: sv->get_mesh()->get_points()) {
+        p.forces += accel * p.load.accel;
     }
 }
 
@@ -241,6 +296,12 @@ PARTIX_DLL_API void RotateEntity(
     PartixWorld* world, softvolume_type* b, 
     float w, float x, float y, float z) {
     b->rotate(w, x, y, z);
+}
+
+PARTIX_DLL_API void RotateEntityWithPivot(
+    PartixWorld* world, softvolume_type* b, 
+    float w, float x, float y, float z, Vector pivot) {
+    b->rotate(w, x, y, z, pivot);
 }
 
 PARTIX_DLL_API void SetEntityFeatures(
@@ -261,3 +322,42 @@ PARTIX_DLL_API void FixEntity(
     }
 }
 
+PARTIX_DLL_API void AddForce(
+    PartixWorld* world, softvolume_type* b, Vector force) {
+
+    for(auto& p: b->get_mesh()->get_points()) {
+        p.forces += force;
+    }
+}
+
+PARTIX_DLL_API int GetContactCount(
+    PartixWorld* world, body_type* b) {
+    return (int)b->get_actual_contact_list().size();
+}
+
+PARTIX_DLL_API void GetContacts(
+    PartixWorld* world, body_type* b, body_type** a) {
+    
+    int i = 0;
+    for (const auto& e: b->get_actual_contact_list()) {
+        a[i++] = e;
+    }
+}
+
+PARTIX_DLL_API int GetClassId(PartixWorld* world, body_type* b) {
+    return b->classid();
+}
+
+PARTIX_DLL_API void BlendPosition(
+    PartixWorld* world, softvolume_type* b, Matrix m, float n) {
+    for(auto& p: b->get_mesh()->get_points()) {
+        Vector v = p.source_position * m;
+        p.new_position = p.new_position * (1.0f - n) + v * (n);
+    }
+}
+
+PARTIX_DLL_API void EstimateOrientation(
+    PartixWorld* world, softvolume_type* b, float deltaTime, Matrix* m) {
+    
+    
+}

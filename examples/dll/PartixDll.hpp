@@ -21,15 +21,27 @@ extern "C" {
     PARTIX_DLL_API void SetGravity(PartixWorld*, Vector g);
 
     PARTIX_DLL_API softvolume_type* CreateSoftVolume(
-        PartixWorld* world, const char* tcf, Vector position, 
-        float scale, float mass);
+        PartixWorld* world, const char* tcf,
+        Vector position, float scale, float mass);
     PARTIX_DLL_API softvolume_type* CreateVehicle(
-        PartixWorld* world, const char* tcf, Vector position, 
-        float scale, float mass);
+        PartixWorld* world, const char* tcf,
+        Vector position, float scale, float mass);
+    PARTIX_DLL_API softvolume_type* CreateSoftVolume2(
+        PartixWorld* world,
+        int vertexCount, const Vector* vertices,
+        int tetrahedronCount, const Tetrahedron* tetrahedra,
+        int faceCount, const Triangle* faces,
+        Vector position, float scale, float mass);
+    PARTIX_DLL_API softvolume_type* CreateVehicle2(
+        PartixWorld* world,
+        int vertexCount, const Vector* vertices,
+        int tetrahedronCount, const Tetrahedron* tetrahedra,
+        int faceCount, const Triangle* faces,
+        Vector position, float scale, float mass);
     PARTIX_DLL_API softshell_type* CreateSoftShell(
         PartixWorld* world, 
-        int vertex_count, Vector* vertices, 
-        int triangle_count, int* triangles,
+        int vertex_count, const Vector* vertices, 
+        int triangle_count, const int* triangles,
         int threshold, Vector location, float scale, float mass);
 
     PARTIX_DLL_API body_type* CreatePlane(
@@ -58,6 +70,8 @@ extern "C" {
     PARTIX_DLL_API void FixEntity(
         PartixWorld* world, softvolume_type* b, 
         Vector origin);
+    PARTIX_DLL_API void AddForce(
+        PartixWorld* world, softvolume_type* b, Vector force);
 
     PARTIX_DLL_API void AnalyzeVehicle(
         PartixWorld*        world, 
@@ -80,6 +94,24 @@ extern "C" {
         PartixWorld* world, softvolume_type* b, 
         float w, float x, float y, float z);
 
+    PARTIX_DLL_API void RotateEntityWithPivot(
+        PartixWorld* world, softvolume_type* b, 
+        float w, float x, float y, float z, Vector pivot);
+
+    PARTIX_DLL_API int GetContactCount(
+        PartixWorld* world, body_type* b);
+
+    PARTIX_DLL_API void GetContacts(
+        PartixWorld* world, body_type* b, body_type** buffer);
+
+    PARTIX_DLL_API int GetClassId(PartixWorld* world, body_type* b);
+
+    PARTIX_DLL_API void BlendPosition(
+        PartixWorld* world, softvolume_type* b, Matrix m, float n);
+
+    PARTIX_DLL_API void EstimateOrientation(
+        PartixWorld* world, softvolume_type* b,
+        float deltaTime, Matrix* m);
 }
 
 #endif // PARTIXDLL_HPP_

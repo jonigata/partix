@@ -1,5 +1,5 @@
 /*!
-  @file		partix_softvolume.hpp
+ @file		partix_softvolume.hpp
   @brief	<概要>
 
   <説明>
@@ -21,124 +21,113 @@
 namespace partix {
 
 // soft volume
-template < class Traits >
-class SoftVolume : public Volume< Traits > {
+template <class Traits>
+class SoftVolume : public Volume<Traits> {
 public:
-	typedef typename Traits::vector_traits	vector_traits;
-	typedef typename Traits::real_type		real_type;
-	typedef typename Traits::vector_type	vector_type;
-	typedef typename Traits::matrix_type	matrix_type;
-	typedef TetrahedralMesh< Traits >		mesh_type;
-	typedef Body< Traits >					body_type;
-	typedef Cloud< Traits >					cloud_type;
-	typedef Collidable< Traits >			collidable_type;
-	typedef std::vector< collidable_type* > collidables_type;
+    typedef typename Traits::vector_traits          vector_traits;
+    typedef typename Traits::real_type              real_type;
+    typedef typename Traits::vector_type            vector_type;
+    typedef typename Traits::matrix_type            matrix_type;
+    typedef TetrahedralMesh<Traits>                 mesh_type;
+    typedef Body<Traits>                            body_type;
+    typedef Cloud<Traits>                           cloud_type;
+    typedef Collidable<Traits>                      collidable_type;
+    typedef std::vector<collidable_type*>           collidables_type;
 
-	typedef typename mesh_type::point_type	point_type;
-	typedef typename mesh_type::points_type points_type;
-	typedef typename mesh_type::edge_type	edge_type;
-	typedef typename mesh_type::edges_type	edges_type;
-	typedef typename mesh_type::face_type	face_type;
-	typedef typename mesh_type::faces_type	faces_type;
-	typedef typename mesh_type::indices_type indices_type;
-	typedef typename mesh_type::tetrahedron_type tetrahedron_type;
-	typedef typename mesh_type::tetrahedra_type tetrahedra_type;
+    typedef typename mesh_type::point_type          point_type;
+    typedef typename mesh_type::points_type         points_type;
+    typedef typename mesh_type::edge_type           edge_type;
+    typedef typename mesh_type::edges_type          edges_type;
+    typedef typename mesh_type::face_type           face_type;
+    typedef typename mesh_type::faces_type          faces_type;
+    typedef typename mesh_type::indices_type        indices_type;
+    typedef typename mesh_type::tetrahedron_type    tetrahedron_type;
+    typedef typename mesh_type::tetrahedra_type     tetrahedra_type;
 
-        typedef typename Traits::vector_traits vt;
+    typedef typename Traits::vector_traits          vt;
 
 public:
-	SoftVolume()
-	{
-		touch_level_	= 2;
-		current_center_ = initial_center_ =
-			math< Traits >::vector_zero();
-		restore_factor_ = real_type(1);
-		stretch_factor_ = 0;
-		freezing_duration_ = 0;
-		crush_duration_ = 0;
-		debug_flag_ = false;
-		math< Traits >::make_identity( criterion_ );
-		math< Traits >::make_identity( R_ );
-		math< Traits >::make_identity( G_ );
-	}
-	~SoftVolume(){}
+    SoftVolume() {
+        touch_level_  = 2;
+        current_center_ = initial_center_ = math<Traits>::vector_zero();
+        restore_factor_ = real_type(1);
+        stretch_factor_ = 0;
+        freezing_duration_ = 0;
+        crush_duration_ = 0;
+        debug_flag_ = false;
+        q_ = quaternion<real_type>::identity();
+        math<Traits>::make_identity(criterion_);
+        math<Traits>::make_identity(R_);
+        math<Traits>::make_identity(G_);
+    }
+    ~SoftVolume(){}
 
-	// implements Body
-	int classid() { return BODY_ID_SOFTVOLUME; }
+    // implements Body
+    int classid() { return BODY_ID_SOFTVOLUME; }
 
-	void regularize()
-	{
-		regularize_internal();
-		match_shape_internal();
-		update_display_matrix_internal();
-	}
-	void list_collision_units( collidables_type& s )
-	{
-		list_collision_units_internal( s );
-	}
-	void move( const vector_type& v )
-	{
-		move_internal( v );
-	}
-	void teleport( const vector_type& v )
-	{
-		teleport_internal( v );
-	}
+    void regularize() {
+        regularize_internal();
+        match_shape_internal();
+        update_display_matrix_internal();
+    }
+    void list_collision_units(collidables_type& s) {
+        list_collision_units_internal(s);
+    }
+    void move(const vector_type& v) {
+        move_internal(v);
+    }
+    void teleport(const vector_type& v) {
+        teleport_internal(v);
+    }
+    void add_force(const vector_type& v) {
+        for (auto& p: get_mesh()->get_points()) {
+            p.forces += v;
+        }
+    }
+    
+    // original
+    void set_name(const char* p) { name_ = p; }
 		
-	// original
-	void set_name( const char* p ) { name_ = p; }
+    bool crushed() { return crushed_; }
+    
+    vector_type get_initial_center() { return initial_center_; }
 		
-	bool crushed() { return crushed_; }
-		
-	vector_type get_initial_center() { return initial_center_; }
-		
-	void set_orientation( const matrix_type& m )
-	{
-		set_orientation_internal( m );
-	}
-	void rotate(
-		real_type w, real_type x, real_type y, real_type z // quaternion
-		)
-	{
-		rotate_internal( w, x, y, z, initial_center_ );
-	} 
-	void rotate(
-		real_type w, real_type x, real_type y, real_type z, // quaternion
-		const vector_type& pivot ) 
-	{
-		rotate_internal( w, x, y, z, pivot );
-	}
-	void rotate_teleportal(
-		real_type w, real_type x, real_type y, real_type z // quaternion
-		)
-	{
-		rotate_teleportal_internal( w, x, y, z, initial_center_ );
-	}
-	void rotate_teleportal(
-		real_type w, real_type x, real_type y, real_type z, // quaternion
-		const vector_type& pivot )
-	{
-		rotate_teleportal_internal( w, x, y, z, pivot );
-	}
-	void kill_inertia() { kill_inertia_internal(); }
-	void reset_rotation() { reset_rotation_internal(); }
+    void set_orientation(const matrix_type& m) {
+        set_orientation_internal(m);
+    }
+    void rotate(
+        real_type w, real_type x, real_type y, real_type z // quaternion
+        ) {
+        rotate_internal(w, x, y, z, initial_center_);
+    }
+    void rotate(
+        real_type w, real_type x, real_type y, real_type z, // quaternion
+        const vector_type& pivot) {
+        rotate_internal(w, x, y, z, pivot);
+    }
+    void rotate_teleportal(
+        real_type w, real_type x, real_type y, real_type z // quaternion
+        ) {
+        rotate_teleportal_internal(w, x, y, z, initial_center_);
+    }
+    void rotate_teleportal(
+        real_type w, real_type x, real_type y, real_type z, // quaternion
+        const vector_type& pivot) {
+        rotate_teleportal_internal(w, x, y, z, pivot);
+    }
+    void kill_inertia() { kill_inertia_internal(); }
+    void reset_rotation() { reset_rotation_internal(); }
+    
+    const matrix_type& get_deformed_matrix() { return deformed_matrix_; }
+    const matrix_type& get_orientation_matrix() { return orientation_matrix_; }
 
-	const matrix_type& get_deformed_matrix() { return deformed_matrix_; }
-	const matrix_type& get_orientation_matrix() { return orientation_matrix_; }
+    void update_mass() { update_mass_internal(); }
 
-	void update_mass() { update_mass_internal(); }
+    void set_restore_factor(real_type x) { restore_factor_ = x; }
+    void set_stretch_factor(real_type x) { stretch_factor_ = x; }
 
-	void set_restore_factor( real_type x ) { restore_factor_ = x; }
-	void set_stretch_factor( real_type x ) { stretch_factor_ = x; }
-
-	vector_type get_current_origin()
-	{
-		return transform( -initial_center_ );
-	}
-	vector_type get_current_center()
-	{
-		return current_center_;
-	}
+	vector_type get_current_origin() { return transform(-initial_center_); }
+	vector_type get_current_center() { return current_center_; }
 
 private:
 	SoftVolume( const SoftVolume& ){}
@@ -301,7 +290,7 @@ private:
 			dump_factor );
 		this->set_force( v0 );
 	}
-
+#if 0
 	void match_shape_internal()
 	{
 		if( touch_level_ == 0 ) {
@@ -311,47 +300,10 @@ private:
 
 		// 重心を計算
 		calculate_center();
-#if 0
-		if( isnan( current_center_.x ) ) { DebugBreak(); }
-		if( isnan( current_center_.y ) ) { DebugBreak(); }
-		if( isnan( current_center_.z ) ) { DebugBreak(); }
-#endif
 
 		// 「あるべき点」にひっぱられる
 		real_type Apq[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		real_type e[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-		points_type& points = this->get_mesh()->get_points();
-		for( typename points_type::iterator i = points.begin() ;
-			 i != points.end() ;
-			 ++i ) {
-			point_type& point = *i;
-			if( !point.surface ) { continue; }
-
-			point.check();
-
-			vector_type p = point.new_position - current_center_;
-			const vector_type& q = point.ideal_offset;
-								
-			real_type px = vector_traits::x( p );
-			real_type py = vector_traits::y( p );
-			real_type pz = vector_traits::z( p );
-			real_type qx = vector_traits::x( q );
-			real_type qy = vector_traits::y( q );
-			real_type qz = vector_traits::z( q );
-								
-			real_type m = point.mass;
-
-			math< Traits >::mount( Apq[0], e[0], m * px * qx );
-			math< Traits >::mount( Apq[1], e[1], m * px * qy );
-			math< Traits >::mount( Apq[2], e[2], m * px * qz );
-			math< Traits >::mount( Apq[3], e[3], m * py * qx );
-			math< Traits >::mount( Apq[4], e[4], m * py * qy );
-			math< Traits >::mount( Apq[5], e[5], m * py * qz );
-			math< Traits >::mount( Apq[6], e[6], m * pz * qx );
-			math< Traits >::mount( Apq[7], e[7], m * pz * qy );
-			math< Traits >::mount( Apq[8], e[8], m * pz * qz );
-		}
+                calculate_Apq(Apq);
 
 		real_type ApqT[9];
  		math< Traits >::transpose_matrix( ApqT, Apq );
@@ -359,116 +311,21 @@ private:
 		real_type ApqT_Apq[9];
 		math< Traits >::multiply_matrix( ApqT_Apq, ApqT, Apq );
 				
-		real_type sqrt_ApqT_Apq[9];
-		math< Traits >::sqrt_matrix( sqrt_ApqT_Apq, ApqT_Apq );
+		real_type S[9];
+		math< Traits >::sqrt_matrix( S, ApqT_Apq );
 
-		real_type inverse_sqrt_ApqT_Apq[9];
-		math< Traits >::inverse_matrix(
-			inverse_sqrt_ApqT_Apq, sqrt_ApqT_Apq );
+		real_type inverse_S[9];
+		math< Traits >::inverse_matrix(inverse_S, S);
 
 		real_type R[9];
-		math< Traits >::multiply_matrix(
-			R, Apq, inverse_sqrt_ApqT_Apq );
-				
+		math< Traits >::multiply_matrix(R, Apq, inverse_S);
+
 		real_type detR = math< Traits >::determinant_matrix( R );
 
+                char buffer[256];
+                sprintf( buffer, "detR: %f\n", detR );
+                OutputDebugStringA( buffer );
 		
-#if 0
-		if( 0.7f < std::abs( 1.0f - detR ) ) {
-			// Rが壊れすぎ
-#if 0
-			char buffer[256];
-			sprintf( buffer, "det0: %f\n", detR );
-			OutputDebugStringA( buffer );
-#endif
-			crushed_ = true;
-		} else {
-			real_type A[9];
-			math< Traits >::multiply_matrix( A, Apq, Aqq_ );
-			real_type detA =
-				math< Traits >::determinant_matrix( A );
-
-			if( 0.5f < std::abs( real_type( 1.0 ) - detA ) ) {	
-				// Aが壊れすぎ
-#if 1
-				char buffer[256];
-				sprintf( buffer, "det1: %f\n", detA );
-				OutputDebugStringA( buffer );
-#endif
-				crushed_ = true;
-			} else {
-#if 1
-				if( 0.4f < std::abs( real_type( 1.0 ) - detA ) ) {	
-					char buffer[256];
-					sprintf( buffer, "det2: %f\n", detA );
-					OutputDebugStringA( buffer );
-				}
-#endif
-
-				real_type cbrt = pow(
-					std::abs( detA ), real_type( 1.0/3.0 ) );
-
-				real_type Adash[9];
-				math< Traits >::multiply_matrix(
-					Adash, A, real_type( 1.0 ) / cbrt );
-								
-#if 0
-				// detがおかしいほど硬くなる
-				real_type stretch_factor =
-					stretch_factor_ - std::abs( 1.0f - detA );
-				if( stretch_factor < 0 ) { stretch_factor = 0; }
-#else
-				real_type stretch_factor = stretch_factor_;
-#endif
-
-				// detが小さいほどエネルギー喪失
-				real_type dump =
-					square( real_type( 1.0 ) - detA ) *
-					real_type( 10.0 );
-#if 0
-				if( isnan( dump ) ) { DebugBreak(); }
-#endif
-				if( real_type( 0.9 ) < dump ) {
-					dump = real_type( 0.9 );
-				}
-				set_internal_dump_factor( dump ) ;
-#if 0
-				{
-					real_type energy = 0;
-					for( typename points_type::iterator i =
-							 points.begin() ;
-						 i != points.end() ;
-						 ++i ) {
-						point_type& point = *i;
-						energy += point.energy;
-					}
-										
-					char buffer [256];
-					sprintf( buffer, "dump: %.8f, %f\n",
-							 dump, energy );
-					OutputDebugStringA( buffer );
-				}
-#endif
-										
-				real_type G0[9];
-				real_type G1[9];
-				math< Traits >::multiply_matrix(
-					G0, Adash, stretch_factor );
-				math< Traits >::multiply_matrix(
-					G1, R, real_type( 1.0 ) - stretch_factor );
-
-				real_type G[9];
-				math< Traits >::add_matrix( G, G0, G1 );
-
-				real_type detG = math< Traits >::determinant_matrix( G );
-				if( 0.5f < detG ) { 
-					// マトリックスが正当なので承認
-					math< Traits >::copy_matrix( R_, R );
-					math< Traits >::copy_matrix( G_, G );
-				}
-			}
-		}
-#else
 		real_type stretch_factor = stretch_factor_;
 
 		real_type A[9];
@@ -496,10 +353,131 @@ private:
 		// 常に承認
 		math< Traits >::copy_matrix( R_, R );
 		math< Traits >::copy_matrix( G_, G );
-
-#endif
-
 	}
+#else
+
+    void match_shape_internal() {
+        if (touch_level_ == 0) {
+            if (!this->get_alive()) { return; }
+            if (this->get_frozen()&& !this->get_defrosting()) { return; }
+        }
+
+        // 重心を計算
+        calculate_center();
+
+        // 「あるべき点」にひっぱられる
+        real_type Apq[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        calculate_Apq(Apq);
+
+        extract_rotation(Apq, q_);
+
+        q_.make_matrix(R_);
+        
+        // real_type stretch_factor = stretch_factor_;
+        real_type stretch_factor = 0.5;
+
+        real_type A[9];
+        math<Traits>::multiply_matrix(A, Apq, Aqq_);
+        real_type detA = math<Traits>::determinant_matrix(A);
+
+        real_type cbrt = pow(std::abs(detA), real_type(1.0/3.0));
+
+        real_type Adash[9];
+        math<Traits>::multiply_matrix(Adash, A, real_type(1.0)/ cbrt);
+
+        real_type G0[9];
+        real_type G1[9];
+        math<Traits>::multiply_matrix(
+            G0, Adash, stretch_factor);
+        math<Traits>::multiply_matrix(
+            G1, R_, real_type(1.0) - stretch_factor);
+
+        real_type G[9];
+        math<Traits>::add_matrix(G, G0, G1);
+
+        // 常に承認
+        math<Traits>::copy_matrix(G_, G);
+    }
+#endif
+    
+    void calculate_Apq(real_type* Apq) {
+        real_type e[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        points_type& points = this->get_mesh()->get_points();
+        for( typename points_type::iterator i = points.begin() ;
+             i != points.end() ;
+             ++i ) {
+            point_type& point = *i;
+            if( !point.surface ) { continue; }
+
+            point.check();
+
+            vector_type p = point.new_position - current_center_;
+            const vector_type& q = point.ideal_offset;
+								
+            real_type px = vector_traits::x( p );
+            real_type py = vector_traits::y( p );
+            real_type pz = vector_traits::z( p );
+            real_type qx = vector_traits::x( q );
+            real_type qy = vector_traits::y( q );
+            real_type qz = vector_traits::z( q );
+								
+            real_type m = point.mass;
+
+            math< Traits >::mount( Apq[0], e[0], m * px * qx );
+            math< Traits >::mount( Apq[1], e[1], m * px * qy );
+            math< Traits >::mount( Apq[2], e[2], m * px * qz );
+            math< Traits >::mount( Apq[3], e[3], m * py * qx );
+            math< Traits >::mount( Apq[4], e[4], m * py * qy );
+            math< Traits >::mount( Apq[5], e[5], m * py * qz );
+            math< Traits >::mount( Apq[6], e[6], m * pz * qx );
+            math< Traits >::mount( Apq[7], e[7], m * pz * qy );
+            math< Traits >::mount( Apq[8], e[8], m * pz * qz );
+        }
+    }
+
+    void extract_rotation(real_type A[9], quaternion<real_type>& q) {
+        const real_type epsilon = vector_traits::epsilon();
+        const real_type r1 = real_type(1);
+
+        typedef math<Traits> mat;
+
+        dprintf("iter: ");
+
+        const unsigned int max_iter = 10;
+        for (unsigned int i = 0 ; i < max_iter ; i++) {
+            real_type R[9];
+            q.make_matrix(R);
+
+            vector_type R0 = vector_traits::make_vector(R[0], R[1], R[2]);
+            vector_type R1 = vector_traits::make_vector(R[3], R[4], R[5]);
+            vector_type R2 = vector_traits::make_vector(R[6], R[7], R[8]);
+            vector_type A0 = vector_traits::make_vector(A[0], A[1], A[2]);
+            vector_type A1 = vector_traits::make_vector(A[3], A[4], A[5]);
+            vector_type A2 = vector_traits::make_vector(A[6], A[7], A[8]);
+
+            vector_type R0xA0 = mat::cross(R0,A0);
+            vector_type R1xA1 = mat::cross(R1,A1);
+            vector_type R2xA2 = mat::cross(R2,A2);
+
+            float R0dotA0 = mat::dot(R0,A0);
+            float R1dotA1 = mat::dot(R1,A1);
+            float R2dotA2 = mat::dot(R2,A2);
+            float ww = std::abs(R0dotA0 + R1dotA1 + R2dotA2) + epsilon;
+
+            vector_type omega = (R0xA0 + R1xA1 + R2xA2) * (r1 / ww);
+            
+            real_type w = mat::length(omega);
+            dprintf("%f ", w);
+            if (w < epsilon) {
+                break;
+            }
+            vector_type o = omega * (r1 / w);
+            q = quaternion<real_type>::angle_axis(w, o.x, o.y, o.z) * q;
+            q = q.normalize();
+        }
+        dprintf("\n");
+    }
 
 	void restore_shape_internal( real_type dt, real_type idt, int kmax )
 	{
@@ -901,6 +879,7 @@ private:
 		math< Traits >::inverse_matrix( Aqq_, Aqq );
 	}
 
+public:
 	void calculate_initial_center()
 	{
 		vector_type total_center = math< Traits >::vector_zero();
@@ -1231,6 +1210,7 @@ private:
 	real_type		freezing_duration_;
 	bool			crushed_;
 	real_type		crush_duration_;
+        quaternion<real_type>       q_;
 
 	std::vector< Collidable< Traits >* >	neighbors_;
 	bool									marked_;
