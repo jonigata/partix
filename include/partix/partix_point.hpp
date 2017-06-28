@@ -62,7 +62,7 @@ public:
     vector_type  view_vector1;   // å„Ç≈è¡Ç∑
     vector_type  free_position;   // å„Ç≈è¡Ç∑
 
-    void check() {
+    void check() const {
 #if 0
         if (isnan(friction)) {
             char buffer[256];
