@@ -50,6 +50,8 @@ extern "C" {
         PartixWorld* world, body_type* b, Vector* position);
     PARTIX_DLL_API void GetOrientation(
         PartixWorld* world, softvolume_type* b, Matrix* position);
+    PARTIX_DLL_API void GetInitialPosition(
+        PartixWorld* world, body_type* b, Vector* position);
 
     PARTIX_DLL_API int GetWireFrameVertexCount(
         PartixWorld* world, softvolume_type* b);
@@ -107,11 +109,15 @@ extern "C" {
     PARTIX_DLL_API int GetClassId(PartixWorld* world, body_type* b);
 
     PARTIX_DLL_API void BlendPosition(
-        PartixWorld* world, softvolume_type* b, Matrix m, float n);
+        PartixWorld* world, softvolume_type* b, Matrix m, float n, float dn);
 
     PARTIX_DLL_API void EstimateOrientation(
         PartixWorld* world, softvolume_type* b,
         float deltaTime, Matrix* m);
+
+    PARTIX_DLL_API void Teleport(
+        PartixWorld* world, softvolume_type* b,
+        Vector v);
 }
 
 #endif // PARTIXDLL_HPP_

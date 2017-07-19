@@ -50,12 +50,14 @@ public:
 public:
     SoftVolume() {
         touch_level_  = 2;
-        current_center_ = initial_center_ = math<Traits>::vector_zero();
+        future_center_ = current_center_ = initial_center_ =
+            math<Traits>::vector_zero();
         restore_factor_ = real_type(1);
         stretch_factor_ = 0;
         freezing_duration_ = 0;
         crush_duration_ = 0;
         debug_flag_ = false;
+        future_avail_ = false;
         q_ = quaternion<real_type>::identity();
         math<Traits>::make_identity(criterion_);
         math<Traits>::make_identity(R_);
@@ -129,6 +131,16 @@ public:
 
     vector_type get_current_origin() { return transform(-initial_center_); }
     vector_type get_current_center() { return current_center_; }
+
+    const matrix_type& get_future_deformed_matrix() {
+        return future_deformed_matrix_;
+    }
+    const matrix_type& get_future_orientation_matrix() {
+        return future_orientation_matrix_;
+    }
+
+    bool get_future_avail() { return future_avail_; }
+    void set_future_avail(bool f) { future_avail_ = f; }
 
 private:
     SoftVolume(const SoftVolume&) {}
@@ -465,8 +477,7 @@ private:
         real_type G[9];
         math<Traits>::multiply_matrix(G, G_, criterion_);
         math<Traits>::transform_vector(tic, G, ic);
-        Traits::make_matrix(
-            deformed_matrix_, G, tic + current_center_);
+        Traits::make_matrix(deformed_matrix_, G, tic + current_center_);
     }
 
     void update_boundingbox_internal() {
@@ -1017,6 +1028,53 @@ public:
         return current_center_ + trv;
     }
 
+    class RetrieveFuturePosition {
+    public:
+        static const vector_type& retreive_position(const point_type& p) {
+            return p.future_position;
+        }
+    };
+
+    void estimate(float span, float tick) {
+        float x = span / tick;
+
+        auto mesh = get_mesh();
+        for(auto& p: mesh->get_points()) {
+            Vector v = p.new_position - p.old_position;
+            p.future_position = p.new_position + v * x;
+        }
+
+        typedef ShapeMatching<RetrieveFuturePosition, Traits> SM;
+
+        future_center_ = SM::calculate_center(mesh);
+
+        quaternion<real_type> q = q_;
+        real_type R[9];
+        real_type G[9];
+
+        SM::calculate_deformed_matrices(
+            mesh,
+            q,
+            R,
+            G,
+            future_center_,
+            Aqq_);
+
+        vector_type ic = -initial_center_; // èdêSÇ©ÇÁÇ›ÇΩå¥ì_
+        vector_type tic;
+        math<Traits>::transform_vector(tic, R, ic);
+
+        Traits::make_matrix(
+            future_orientation_matrix_, R, tic + future_center_);
+
+        real_type G0[9];
+        math<Traits>::multiply_matrix(G0, G, criterion_);
+        math<Traits>::transform_vector(tic, G0, ic);
+        Traits::make_matrix(future_deformed_matrix_, G0, tic + future_center_);
+
+        future_avail_ = true;
+    }
+
 private:
     std::string  name_;
 
@@ -1029,6 +1087,9 @@ private:
     vector_type                         current_center_;
     matrix_type                         deformed_matrix_;
     matrix_type                         orientation_matrix_;
+    vector_type                         future_center_;
+    matrix_type                         future_deformed_matrix_;
+    matrix_type                         future_orientation_matrix_;
     vector_type                         bbmin_;
     vector_type                         bbmax_;
     real_type  Aqq_[9];
@@ -1046,6 +1107,7 @@ private:
     bool                                marked_;
 
     bool                                debug_flag_;
+    bool                                future_avail_;
 
     template <class T> friend class World;
 

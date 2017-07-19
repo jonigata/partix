@@ -125,6 +125,11 @@ PARTIX_DLL_API void GetOrientation(
     *m = b->get_deformed_matrix();
 }
 
+PARTIX_DLL_API void GetInitialPosition(
+    PartixWorld* world, body_type* b, Vector* position) {
+    *position = b->get_initial_center();
+}
+
 PARTIX_DLL_API int GetWireFrameVertexCount(
     PartixWorld* world, softvolume_type* b) {
     return (int)b->get_mesh()->get_points().size();
@@ -138,11 +143,25 @@ PARTIX_DLL_API int GetWireFrameIndexCount(
 
 PARTIX_DLL_API void GetWireFrameVertices(
     PartixWorld* world, softvolume_type* b, Vector* buffer) {
+
+#if 0
     auto m = b->get_deformed_matrix();
     Vector center(m.m30, m.m31, m.m32);
     for (const auto& p: b->get_mesh()->get_points()) {
         *buffer++ = p.new_position - center;
     }
+#else
+    auto m = b->get_deformed_matrix();
+    Vector center(m.m30, m.m31, m.m32);
+    bool future_avail = b->get_future_avail();
+    for (const auto& p: b->get_mesh()->get_points()) {
+        if (future_avail) {
+            *buffer++ = p.future_position - center;
+        } else {
+            *buffer++ = p.new_position - center;
+        }
+    }
+#endif
 }
 
 PARTIX_DLL_API void GetWireFrameIndices(
@@ -349,15 +368,29 @@ PARTIX_DLL_API int GetClassId(PartixWorld* world, body_type* b) {
 }
 
 PARTIX_DLL_API void BlendPosition(
-    PartixWorld* world, softvolume_type* b, Matrix m, float n) {
+    PartixWorld* world, softvolume_type* b, Matrix m, float n, float dn) {
+
+    float rn = 1.0f - n;
     for(auto& p: b->get_mesh()->get_points()) {
-        Vector v = p.source_position * m;
-        p.new_position = p.new_position * (1.0f - n) + v * (n);
+        Vector ideal_position = p.source_position * m;
+        Vector destination = p.new_position * rn + ideal_position * n;
+        Vector diff = destination - p.new_position;
+        p.old_position += diff * dn;
+        p.new_position = destination;
+        p.future_position = ideal_position;
     }
+    b->set_future_avail(true);
 }
 
 PARTIX_DLL_API void EstimateOrientation(
     PartixWorld* world, softvolume_type* b, float deltaTime, Matrix* m) {
-    
-    
+
+    b->estimate(deltaTime, PartixTraits::tick());
+    *m = b->get_future_deformed_matrix();
+}
+
+PARTIX_DLL_API void Teleport(
+    PartixWorld* world, softvolume_type* b,
+    Vector v) {
+    b->teleport(v);
 }

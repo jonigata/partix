@@ -38,6 +38,7 @@ public:
         p.source_position           = v;
         p.old_position              = v;
         p.new_position              = v;
+        p.future_position           = v;
         p.ideal_offset              = v0;
         p.velocity                  = v0;
         p.forces                    = v0;

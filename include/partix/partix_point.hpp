@@ -23,6 +23,7 @@ public:
     int    id;
     vector_type     new_position;           // 新しい位置
     vector_type     old_position;           // 古い位置
+    vector_type     future_position;        // 予測位置
     vector_type     velocity;               // 現在の速度
     vector_type     normal;                 // 頂点法線
     vector_type     source_position;        // 初期位置
