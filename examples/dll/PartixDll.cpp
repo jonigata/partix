@@ -22,6 +22,7 @@ void DebugLog(const char* s) {
 
 PARTIX_DLL_API void SetDebugLog(debug_log_func_type f) {
     log_func = f;
+    partix::set_dprintf(f);
 }
 
 PARTIX_DLL_API void DebugLogTest() {
@@ -30,8 +31,6 @@ PARTIX_DLL_API void DebugLogTest() {
 
 PARTIX_DLL_API PartixWorld* CreateWorld() {
     PartixWorld* world = new PartixWorld;
-    DebugLog("CreateWorld");
-    DebugLogPointer(world);
     world->restart();
     return world;
 }
@@ -70,14 +69,11 @@ PARTIX_DLL_API softvolume_type* CreateSoftVolume2(
     int faceCount, const Triangle* faces,
     Vector position, float scale, float mass) {
     if (world == nullptr) { return nullptr; }
-    DebugLog("CreateSoftVolume2");
-    DebugLogPointer(world);
     softvolume_ptr b = world->add_softvolume(
         vertexCount, vertices,
         tetrahedronCount, tetrahedra,
         faceCount, faces,
         position, scale, mass);
-    DebugLog("B");
     return b.get();
 }
 

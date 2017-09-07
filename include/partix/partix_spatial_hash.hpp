@@ -64,193 +64,178 @@ protected:
 };
 
 // node‚Ì‚Ý‚ÌŒ`Ž®
-template < class Traits, class Node >
-class DirectSpatialHash : public SpatialHashBase< Traits > {
+template <class Traits, class Node>
+class DirectSpatialHash : public SpatialHashBase<Traits> {
 public:
-	typedef typename Traits::real_type      real_type;
-	typedef typename Traits::vector_type    vector_type;
+    typedef typename Traits::real_type      real_type;
+    typedef typename Traits::vector_type    vector_type;
 
-        typedef typename Traits::vector_traits vt;
+    typedef typename Traits::vector_traits vt;
 
-	struct InternalNode {
-		InternalNode*   next;
-		Node            node;
-	};
+    struct InternalNode {
+        InternalNode*   next;
+        Node            node;
+    };
 
-	typedef InternalNode* InternalNodePtr;
+    typedef InternalNode* InternalNodePtr;
 
-	typedef InternalNodePtr table_entry_type;
+    typedef InternalNodePtr table_entry_type;
 
 public:
-	DirectSpatialHash(
-		real_type       gridsize,
-		int             tablesize )
-		: SpatialHashBase< Traits >( gridsize, tablesize ),
-		  pool_( page_provider_, "dsh" )
-	{
-		table_ = new InternalNodePtr[ tablesize ];
-		memset( table_, 0, sizeof( InternalNodePtr ) * tablesize );
-	}
-	~DirectSpatialHash()
-	{
-		delete [] table_;
-	}
+    DirectSpatialHash(
+        real_type       gridsize,
+        int             tablesize)
+        : SpatialHashBase<Traits>(gridsize, tablesize),
+        page_provider_("dsh"),
+        pool_(page_provider_, "dsh") {
+        table_ = new InternalNodePtr[tablesize];
+        memset(table_, 0, sizeof(InternalNodePtr)* tablesize);
+    }
+    ~DirectSpatialHash() {
+        delete [] table_;
+    }
 
-	void clear( real_type gridsize )
-	{
-		memset( table_, 0, sizeof( InternalNodePtr ) * this->tablesize_ );
-		pool_.clear();
-		this->gridsize_ = gridsize;
-		this->rgridsize_ = real_type( 1.0 ) / this->gridsize_;
-	}
+    void clear(real_type gridsize) {
+        memset(table_, 0, sizeof(InternalNodePtr)* this->tablesize_);
+        pool_.clear();
+        this->gridsize_ = gridsize;
+        this->rgridsize_ = real_type(1.0)/ this->gridsize_;
+    }
 
-	void insert( size_t hv, const Node& t )
-	{
-		InternalNode* r = (InternalNode*)pool_.allocate();
-		r->next = table_[hv];
-		r->node = t;
-		table_[hv] = r;
-	}
+    void insert(size_t hv, const Node& t) {
+        InternalNode* r =(InternalNode*)pool_.allocate();
+        r->next = table_[hv];
+        r->node = t;
+        table_[hv] = r;
+    }
 
-	InternalNodePtr entry( size_t hv )
-	{
-		return table_[hv];
-	}
-	InternalNodePtr next( InternalNodePtr p )
-	{
-		return p->next;
-	}
-	Node* unwrap( InternalNodePtr p )
-	{
-		return &p->node;
-	}
+    InternalNodePtr entry(size_t hv) {
+        return table_[hv];
+    }
+    InternalNodePtr next(InternalNodePtr p) {
+        return p->next;
+    }
+    Node* unwrap(InternalNodePtr p) {
+        return &p->node;
+    }
 
-	template < class Tiee, class Callback >
-	void apply( Tiee& tiee, const Callback& c )
-	{
-		for( size_t i = 0 ; i < this->tablesize_ ; i++ ) {
-			if( !entry( i ) ) { continue; }
+    template <class Tiee, class Callback>
+    void apply(Tiee& tiee, const Callback& c) {
+        for (size_t i = 0 ; i <this->tablesize_ ; i++) {
+            if (!entry(i)) { continue; }
 
-			for( typename Tiee::table_entry_type p = tiee.entry( i ) ;
-				 p ;
-				 p = tiee.next( p ) ) {
-				for( table_entry_type q = entry(i) ; q ; q = next( q ) ) {
-					c( unwrap( p ), unwrap( q ) );
-				}
-			}
+            for (typename Tiee::table_entry_type p = tiee.entry(i);
+                 p;
+                 p = tiee.next(p)) {
+                for (table_entry_type q = entry(i); q ; q = next(q)) {
+                    c(unwrap(p), unwrap(q));
+                }
+            }
 
-		}
-	}
+        }
+    }
 
 protected:
-	default_page_provider										page_provider_;
-	fixed_pool< sizeof( InternalNode ), default_page_provider >     pool_;
-	InternalNodePtr*                                                table_;
+    default_page_provider          page_provider_;
+    fixed_pool<sizeof(InternalNode), default_page_provider>     pool_;
+    InternalNodePtr*                                                table_;
 
 };
 
 // node + refererŒ`Ž®
 template < class Traits, class Node >
-class IndirectSpatialHash : public SpatialHashBase< Traits > {
+class IndirectSpatialHash : public SpatialHashBase<Traits> {
 public:
-	typedef typename Traits::real_type      real_type;
-	typedef typename Traits::vector_type    vector_type;
+    typedef typename Traits::real_type      real_type;
+    typedef typename Traits::vector_type    vector_type;
 
-	typedef Node InternalNode;
-	struct InternalReferer {
-		InternalReferer*        next;
-		InternalNode*           node;
-	};
+    typedef Node InternalNode;
+    struct InternalReferer {
+        InternalReferer*        next;
+        InternalNode*           node;
+    };
 
-	typedef InternalReferer* InternalRefererPtr;
+    typedef InternalReferer* InternalRefererPtr;
 
-	typedef InternalRefererPtr table_entry_type;
+    typedef InternalRefererPtr table_entry_type;
 
 public:
-	IndirectSpatialHash(
-		real_type       gridsize,
-		int             tablesize,
-		const char*		name )
-		: SpatialHashBase< Traits >( gridsize, tablesize ),
-		  pool0_( page_provider_, name ),
-		  pool1_( page_provider_, name )
-	{
-		table_ = new InternalRefererPtr[ tablesize ];
-		memset( table_, 0, sizeof( InternalRefererPtr ) * tablesize );
-	}
-	~IndirectSpatialHash()
-	{
-		delete [] table_;
-	}
+    IndirectSpatialHash(
+        real_type       gridsize,
+        int             tablesize,
+        const char*  name)
+        :
+        SpatialHashBase<Traits>(gridsize, tablesize),
+        page_provider_(name),
+        pool0_(page_provider_, name),
+        pool1_(page_provider_, name) {
+        table_ = new InternalRefererPtr[tablesize];
+        memset(table_, 0, sizeof(InternalRefererPtr)* tablesize);
+    }
+    ~IndirectSpatialHash() {
+        delete [] table_;
+    }
 
-	void clear( real_type gridsize )
-	{
-		memset( table_, 0, sizeof( InternalRefererPtr ) * this->tablesize_ );
-		pool0_.clear();
-		pool1_.clear();
-		this->gridsize_ = gridsize;
-		this->rgridsize_ = real_type( 1.0 ) / this->gridsize_;
-	}
+    void clear(real_type gridsize) {
+        memset(table_, 0, sizeof(InternalRefererPtr)* this->tablesize_);
+        pool0_.clear();
+        pool1_.clear();
+        this->gridsize_ = gridsize;
+        this->rgridsize_ = real_type(1.0)/ this->gridsize_;
+    }
 
-	Node* alloc_node()
-	{
-		return (Node*)pool0_.allocate();
-	}
+    Node* alloc_node() {
+        return(Node*)pool0_.allocate();
+    }
 
-	void is_entry_empty( size_t hv )
-	{
-		return table_[hv] == NULL;
-	}
+    void is_entry_empty(size_t hv) {
+        return table_[hv] == NULL;
+    }
 
-	void insert( size_t hv, Node* t )
-	{
-		InternalReferer* r = (InternalReferer*)pool1_.allocate();
-		r->next = table_[hv];
-		r->node = t;
-		table_[hv] = r;
-	}
+    void insert(size_t hv, Node* t) {
+        InternalReferer* r =(InternalReferer*)pool1_.allocate();
+        r->next = table_[hv];
+        r->node = t;
+        table_[hv] = r;
+    }
 
-	InternalRefererPtr entry( size_t hv )
-	{
-		return table_[hv];
-	}
-	InternalRefererPtr next( InternalRefererPtr p )
-	{
-		return p->next;
-	}
-	Node* unwrap( InternalRefererPtr p )
-	{
-		return p->node;
-	}
+    InternalRefererPtr entry(size_t hv) {
+        return table_[hv];
+    }
+    InternalRefererPtr next(InternalRefererPtr p) {
+        return p->next;
+    }
+    Node* unwrap(InternalRefererPtr p) {
+        return p->node;
+    }
 
-	template < class Tiee, class Callback >
-	void apply( Tiee& tiee, const Callback& c )
-	{
-		for( size_t i = 0 ; i < this->tablesize_ ; i++ ) {
-			//if( !entry( i ) ) { continue; }
-                        
-			for( typename Tiee::table_entry_type p = tiee.entry( i ) ;
-				 p ;
-				 p = tiee.next( p ) ) {
-				for( table_entry_type q = entry(i) ; q ; q = next( q ) ) {
-					if( c( tiee.unwrap( p ), unwrap( q ) ) ) { break; }
-				}
-			}
-		}
+    template <class Tiee, class Callback>
+    void apply(Tiee& tiee, const Callback& c) {
+        for (size_t i = 0 ; i <this->tablesize_ ; i++) {
+            //if (!entry(i)) { continue; }
+
+            for (typename Tiee::table_entry_type p = tiee.entry(i);
+                 p;
+                 p = tiee.next(p)) {
+                for (table_entry_type q = entry(i); q ; q = next(q)) {
+                    if (c(tiee.unwrap(p), unwrap(q))) { break; }
+                }
+            }
+        }
 #if 0
-		char buffer[256];
-		sprintf( buffer, "apply %f, %f\n",
-				 float(m) / this->tablesize_,
-				 float(n) / this->tablesize_ );
-		OutputDebugStringA( buffer );
-#endif		
-	}
+        char buffer[256];
+        sprintf(buffer, "apply %f, %f\n",
+                float(m)/ this->tablesize_,
+                float(n)/ this->tablesize_);
+        OutputDebugStringA(buffer);
+#endif
+    }
 
 protected:
-	default_page_provider										page_provider_;
-	fixed_pool< sizeof( InternalNode ), default_page_provider >     pool0_;
-	fixed_pool< sizeof( InternalReferer ), default_page_provider >  pool1_;
-	InternalRefererPtr*                                             table_;
+    default_page_provider          page_provider_;
+    fixed_pool<sizeof(InternalNode), default_page_provider>     pool0_;
+    fixed_pool<sizeof(InternalReferer), default_page_provider>  pool1_;
+    InternalRefererPtr*                                             table_;
 
 };
 

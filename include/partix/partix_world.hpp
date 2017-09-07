@@ -20,6 +20,7 @@
 #include "partix_cloth.hpp"
 #include "partix_plane.hpp"
 #include "partix_utilities.hpp"
+#include "partix_debug.hpp"
 #include "performance_counter.hpp"
 #include <algorithm>
 
@@ -79,31 +80,33 @@ public:
 
 public:
     World()
-        : contact_pool_( page_provider_, "contact" ),
-		  ray_processor_( 
+        :
+        page_provider_("world contact"),
+        contact_pool_( page_provider_, "contact" ),
+        ray_processor_( 
             SPATIAL_HASH_GRID_SIZE,
             SPATIAL_HASH_TABLE_SIZE ),
-          cloth_point_tetrahedron_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE ),
-          cloth_spike_face_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE ),
-          cloth_edge_face_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE ),
-          point_tetrahedron_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE ),
-          edge_face_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE ),
-          penetration_face_spatial_hash_(
-              SPATIAL_HASH_GRID_SIZE,
-              SPATIAL_HASH_TABLE_SIZE )
-    {
+        cloth_point_tetrahedron_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ),
+        cloth_spike_face_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ),
+        cloth_edge_face_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ),
+        point_tetrahedron_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ),
+        edge_face_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ),
+        penetration_face_spatial_hash_(
+            SPATIAL_HASH_GRID_SIZE,
+            SPATIAL_HASH_TABLE_SIZE ) {
         body_id_seed_ = 0;
         init();
+        dprintf("<color=yellow>world start</color>");
     }
     ~World() {}
 
@@ -2037,8 +2040,8 @@ private:
     std::vector< collision_resolver_type > collision_resolver_table_;
     constraints_type                       constraints_;
     contacts_type                          contacts_;
-	default_page_provider					page_provider_;
-	fixed_pool< sizeof( contact_type ), default_page_provider > contact_pool_;
+    default_page_provider					page_provider_;
+    fixed_pool< sizeof( contact_type ), default_page_provider > contact_pool_;
     //BroadSpatialHash< Traits >      broad_spatial_hash_;
     aabb_tree_type                         aabbt_;
     ray_processor_type                     ray_processor_;

@@ -70,7 +70,9 @@ public:
 
 public:
     RayProcessor( real_type gridsize, int hashsize )
-        : pool_( page_provider_, "rayproc" ), rtsh_( gridsize, hashsize ) {}
+        : page_provider_("rayproc"),
+          pool_(page_provider_, "rayproc"),
+          rtsh_( gridsize, hashsize ) {}
     ~RayProcessor(){}
 
     template < class F >
